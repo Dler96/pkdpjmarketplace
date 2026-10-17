@@ -2,5 +2,5 @@
 // Use the project's publishable (or legacy anon) key here. Never use the service-role key.
 window.PRESINT18_CONFIG = {
   supabaseUrl: 'https://mmhteibirsevueiwsehn.supabase.co',
-  supabaseAnonKey: 'PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE'
+  supabaseAnonKey: 'sb_publishable_N_bjaf-z2ESjXW-DhT1cNQ_vasnvZnw'
 };
