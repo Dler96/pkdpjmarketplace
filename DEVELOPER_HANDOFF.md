@@ -12,6 +12,7 @@ Included now:
 - Marketplace layout, shop tiles, shop/product customization UI and daily highlight areas.
 - Five color-coded markets with individual and all-market browsing; shop creation includes a market selector.
 - Listing categories for physical goods, digital goods and services, plus a condition label for new or used physical items.
+- Template-inspired workflows: seller shop approval queue, owner dashboard for top-three highlights, buyer order history and QR receipt submission, and seller/admin order and payment-status management.
 - Cart and checkout form for buyer name, phone, delivery unit/location, quantities and payment preference.
 - Clinic facade photos supplied for the visual theme.
 - Supabase client hooks and initial PostgreSQL schema/RLS/Storage/order RPC in `supabase/schema.sql`.
@@ -23,7 +24,7 @@ Still required before production:
 - Review and test every RLS policy with buyer, seller and admin accounts; define who can approve sellers and manage highlights.
 - Confirm whether users should be allowed to shop across regions and whether sellers may operate in more than one market; the current prototype assigns one market per shop.
 - Configure Supabase Auth site and redirect URLs for the final GitHub Pages domain.
-- Implement actual payment verification/receipt flow. The QR choice is an instruction/display flow; it does not process payment.
+- Verify uploaded QR receipts manually against the actual payment account. The site does not process or automatically verify payments.
 - Add operational rules for order fulfilment, stock edits, cancellations, privacy/retention and support contact.
 - Test mobile layouts and end-to-end signup, login, listing, checkout and order management on the hosted HTTPS site.
 
@@ -35,8 +36,11 @@ Still required before production:
 | `styles.css` | Responsive styling and visual theme |
 | `auth.js` | Supabase Auth setup, sign-in, sign-up, session handling |
 | `app.js` | Marketplace rendering and interactions; includes prototype/local behavior and Supabase integration points |
+| `workflows.js` | Role-aware admin, seller and buyer order screens |
 | `config.js` | Supabase project URL and public client key configuration |
 | `supabase/schema.sql` | Initial database tables, policies, storage setup and order function |
+| `supabase/upgrade-marketplace-workflows.sql` | Additive workflow migration for an existing database |
+| `_headers` | Cloudflare Pages response security headers |
 | `assets/clinic-wide.png` | Supplied wide clinic image |
 | `assets/clinic-facade.png` | Supplied facade photo |
 | `README.md` | Quick start and deployment notes |
@@ -47,7 +51,7 @@ Still required before production:
 2. Open the folder in a code editor.
 3. For a static preview, open `index.html`. For Auth redirects and Supabase usage, serve it from an HTTP/HTTPS origin (for example, GitHub Pages or a local static server), not `file://`.
 4. Update `supabaseAnonKey` in `config.js` with the project's Supabase publishable key (legacy `anon` key is also supported by Supabase). Keep the service-role key out of all browser code and GitHub.
-5. In the Supabase SQL Editor, inspect and apply `supabase/schema.sql` to the correct project. Review it against the current project state before applying to a project with existing data.
+5. For a new database, inspect and apply `supabase/schema.sql`, then `supabase/upgrade-marketplace-workflows.sql`. For the existing project that already ran the base schema, apply only `supabase/upgrade-marketplace-workflows.sql`; do not reset or replace the database.
 6. In Supabase Auth URL Configuration, set the deployed site URL and add the exact GitHub Pages URL to allowed redirects.
 7. Deploy the contents of this folder at the repository root, or configure GitHub Pages to serve this folder.
 
@@ -57,7 +61,7 @@ Still required before production:
 - Never commit a Supabase service-role key, database password, personal access token or other server secret.
 - RLS must remain enabled and be tested for each role. A client-side role selector is not authorization; database policies must enforce access.
 - The current source contains a combination of browser-local prototype state and Supabase-backed paths. Treat browser data as device-specific and non-production until all workflows have been migrated and verified.
-- The QR and cash options are order preferences, not a payment gateway. Do not represent an order as paid until a trusted verification process is implemented.
+- QR receipts are submitted for manual review. Do not mark an order paid until a seller/admin checks the actual payment account.
 - Use synthetic accounts and products during development. Avoid real patient, staff or other sensitive personal information in marketplace records.
 
 ## Suggested development sequence
