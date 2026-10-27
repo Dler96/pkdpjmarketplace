@@ -60,7 +60,7 @@ create table if not exists public.shops (
   word text not null default 'made with care',
   cover_image_path text,
   payment_qr_path text,
-  status text not null default 'active' check (status in ('active', 'paused', 'suspended')),
+  status text not null default 'pending' check (status in ('pending', 'active', 'paused', 'suspended')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

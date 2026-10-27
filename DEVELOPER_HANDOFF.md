@@ -1,3 +1,5 @@
+> Note: README.md has the current file layout, setup steps and the list of fixes. This handoff is kept for background.
+
 # Developer handoff — Klinik Kesihatan Presint 18 Marketplace
 
 This package is a starting point for continued development of a workplace marketplace for Klinik Kesihatan Presint 18. The intended sellers are clinic units and departments. Buyers browse shop tiles, add items to a cart, then request cash-on-collection/delivery or QR payment.

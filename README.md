@@ -1,39 +1,74 @@
 # Presint 18 Market
 
-A static, responsive marketplace prototype for Klinik Kesihatan Presint 18 that can be hosted with GitHub Pages. Sellers are framed as clinic units or departments, and prices display in RM.
+A small marketplace website for Klinik Kesihatan Presint 18 and the clinics around it (Pejabat Kesihatan Putrajaya, KK Presint 9, 11, 14 and 18). Units and departments open shops, list food, goods, printables or services, and colleagues order with cash or QR payment. Prices are in RM.
 
-The marketplace can show five locations separately or together: Pejabat Kesihatan Putrajaya and Klinik Kesihatan Presint 9, 11, 14 and 18. Each location has a color identity. Sellers can choose a location for a shop and classify listings as physical goods, digital goods or services; physical listings can be marked new or used.
+It's a plain static site — HTML, CSS and JavaScript, no build step — with [Supabase](https://supabase.com) for accounts, data, images and orders.
 
-Recent workflow upgrade adapted from the supplied Nyamnyam template: main-admin shop approval and top-three daily highlights, buyer order history with private QR-receipt submission, and seller/admin order status and manual QR payment review. Sellers submit shops for approval before they appear to other users. `_headers` adds browser security headers for Cloudflare Pages.
+## Try it in 30 seconds
 
-The hero uses the supplied clinic facade photos in `assets/`, with a warm contrast treatment and layered crop.
+1. Unzip the folder.
+2. **Windows:** double-click `start-local-server.bat`. **Mac:** double-click `start-local-server.command`. (Both need Python. Or use VS Code's *Live Server* extension.)
+3. Your browser opens `http://localhost:8080`. Sign in, or click **Look around with sample data** to explore everything without an account.
 
-## Preview locally
+Opening `index.html` directly also works for browsing, but email links (confirmation, password reset) need the site to be served over `http://` or `https://`.
 
-Open `index.html` in a browser. No build step or package install is needed.
+## Accounts
 
-## Publish with GitHub Pages
+- **Buyer** — browse, add to bag, check out, see *My orders*, upload QR receipts.
+- **Buyer & seller** — everything above, plus open a unit shop, add items, manage stock and prices, and see *Shop orders*.
+- **Admin** — approves new shops, picks *Today's finds*, and can update any order. Make someone admin in the Supabase SQL editor:
+  ```sql
+  update public.profiles set is_admin = true where id = '<auth user UUID>';
+  ```
 
-1. Add these files to the root of a GitHub repository.
-2. In **Settings → Pages**, choose **Deploy from a branch**, select your default branch and `/ (root)`, then save.
-3. GitHub Pages will publish the site at the repository’s Pages URL.
+New shops start as **waiting for approval**. The seller can see their own shop and add items straight away; everyone else sees it once an admin approves it.
 
-For Cloudflare Pages, connect the GitHub repository, use branch `main`, Framework preset `None`, leave Build command empty, set Build output directory to `.`, and leave Root directory at its default. The project files live in the repository root; Cloudflare Pages publishes a `*.pages.dev` URL and redeploys when commits arrive.
+## Supabase setup
 
-## Current behavior
+`config.js` already holds the project URL and publishable key. Never put the `service_role` key in this site.
 
-Without a Supabase publishable key, the page uses browser-local demo data. With Supabase configured, authentication, shops, products, images, and checkout use the database. Cart contents are still saved per user in that browser. QR payment is not processed by the site; uploaded receipts require manual checking by the seller/admin. Admin, seller-order and receipt workflows require the workflow migration below.
+In the Supabase **SQL Editor**, run the files in `supabase/`:
 
-## Supabase Auth setup
+| Situation | Run |
+| --- | --- |
+| Brand-new project | `schema.sql` → `upgrade-marketplace-workflows.sql` → `fix-highlights-timezone.sql` |
+| Project that already ran the base schema | `upgrade-marketplace-workflows.sql` (if not yet run) → `fix-highlights-timezone.sql` |
 
-The sign-in and registration screen uses Supabase Auth. In `config.js`, replace the placeholder with the project's **publishable key** (or legacy `anon` key). The project URL is already filled in. Never put the Supabase service-role key in this static site. The Supabase dashboard requested a fresh sign-in when I tried to read the key, so I left the placeholder in place.
+All three are additive; don't reset the database.
 
-In Supabase's SQL Editor, run [`supabase/schema.sql`](supabase/schema.sql) and then [`supabase/upgrade-marketplace-workflows.sql`](supabase/upgrade-marketplace-workflows.sql) for a new project. If `schema.sql` was already run in the existing marketplace project, run only the additive workflow migration; do not reset the database. It adds shop approval, receipt storage, fulfilment choice, and guarded order workflow functions.
+Then in **Authentication → URL Configuration**, set the Site URL to where the site is hosted (and add `http://localhost:8080` to the redirect URLs if you test locally).
 
-Do not run the supplied Nyamnyam template's `database/01-new-project-base.sql` or `database/03-marketplace-and-latest-features.sql` on this project: those scripts target a different schema and can conflict with this marketplace database.
+## Publishing
 
-In Supabase, set the production GitHub Pages URL under **Authentication → URL Configuration** as the Site URL and add it to the allowed redirect URLs. Registration stores name, account type, and unit/department as Auth user metadata. Configure email confirmation in Supabase Auth as desired. Test sign-in from the hosted `https://` page; opening the file directly with `file://` does not provide the website origin needed for email redirects.
+- **GitHub Pages:** push these files to the repo root, then *Settings → Pages → Deploy from a branch → main / root*.
+- **Cloudflare Pages:** connect the repo, framework preset *None*, no build command, output directory `.`. The `_headers` file adds security headers.
 
-The marketplace is hidden until Supabase reports an authenticated session. Before real workplace use, verify account permissions and all RLS policies with buyer, seller and owner-admin accounts.
+## Files
 
-Checkout includes name, phone/WhatsApp, unit/department delivery location, item quantities, delivery or self-collection, and cash or QR preference. QR receipts are manually verified; no payment gateway is connected.
+| Path | Purpose |
+| --- | --- |
+| `index.html` | Page structure: sign-in screen, market, bag, dialogs |
+| `styles.css` | All styling (responsive, phone-friendly) |
+| `auth.js` | Sign in, create account, password reset, sample preview |
+| `app.js` | Shops, items, bag, checkout, seller tools |
+| `workflows.js` | My orders, Shop orders, receipts, admin control room |
+| `config.js` | Supabase URL + publishable key |
+| `supabase/*.sql` | Database tables, security policies, storage and order functions |
+| `start-local-server.*` | One-click local preview |
+
+## What was fixed in this version
+
+- **The site crashed on load.** `app.js` had a stray `})` that stopped the entire marketplace script from running, so after signing in nothing worked.
+- **Sellers couldn't open shops.** The page created shops as `active`, which the database rejects for non-admins. Shops are now submitted as *pending*, and sellers can see and stock their pending shops.
+- **"Customize" appeared on everyone's shops.** Edit tools now show only on your own shop.
+- **Today's finds disappeared between midnight and 8 am** (UTC vs Malaysia date). Fixed in the page and in `fix-highlights-timezone.sql`.
+- The README pointed to `supabase/upgrade-marketplace-workflows.sql`, which didn't exist; the SQL is now in `supabase/`.
+- The bag showed `$0.00`, demo shop categories didn't match the filters, and admin approvals didn't refresh the market.
+
+**Easier to use:** larger readable text, a header that fits on phones, clinic and type filters with counts, "Only 2 left" / "Sold out" labels, a one-step checkout with delivery-or-collect and remembered contact details, clear QR payment steps, an account menu, password reset and show-password, friendly error messages, loading and empty states, a sample-data preview, and a *Stock & prices* editor for sellers.
+
+## Before real use
+
+- Test sign-up, shop approval, checkout and receipts on the hosted site with a buyer, seller and admin account.
+- QR payments are **not** verified automatically — sellers must check their bank account before marking an order paid.
+- Use test data while developing; avoid patient or sensitive personal information.
