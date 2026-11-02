@@ -2,193 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f2eb">
-  <meta name="description" content="A shared marketplace for the units and departments of Klinik Kesihatan Presint 18.">
-  <title>Presint 18 Market</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%233a725b'/%3E%3Ctext x='32' y='41' font-family='Arial' font-weight='800' font-size='22' fill='%23fff' text-anchor='middle'%3EP18%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Manrope:wght@600;700;800&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>PKDPJ Market · Buy and sell within the PKD Putrajaya community</title>
+  <meta name="description" content="Food, goods, printables and services from the units of PKD Putrajaya and Klinik Kesihatan Presint 9, 11, 14 and 18.">
+  <meta name="theme-color" content="#f6f3ec">
+  <link rel="icon" href="/assets/img/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/img/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Manrope:wght@600;700;800&family=Fraunces:ital,opsz,wght@1,9..144,500&display=swap">
+  <link rel="stylesheet" href="/assets/css/site.css?v=20261103">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script defer src="/config.js"></script>
+  <script defer src="/assets/js/fx.js?v=20261103"></script>
+  <script defer src="/assets/js/core.js?v=20261103"></script>
+  <script defer src="/assets/js/home.js?v=20261103"></script>
 </head>
-<body>
-  <a class="skip-link" href="#market">Skip to the market</a>
-
-  <!-- ============ SIGN-IN SCREEN ============ -->
-  <section class="auth-gate" id="authGate" aria-labelledby="authHeading">
-    <div class="auth-visual">
-      <img src="assets/clinic-wide.png" alt="">
-      <div class="auth-visual-shade"></div>
-      <div class="auth-brand"><span class="brand-mark">P18</span><span>Klinik Kesihatan<br><b>Presint 18</b></span></div>
-      <div class="auth-visual-copy">
-        <span class="overline light">Our clinic · our community</span>
-        <h1>Good things<br>start <em>right here.</em></h1>
-        <p>Buy and sell food, crafts, digital goods and services with the units and departments you work alongside.</p>
-        <ul class="auth-points">
-          <li><span>1</span>Browse shops from five clinics</li>
-          <li><span>2</span>Add things to your bag</li>
-          <li><span>3</span>Pay cash on collection or by QR</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="auth-form-side">
-      <div class="auth-mobile-brand"><span class="brand-mark">P18</span><span>Klinik Kesihatan<br><b>Presint 18</b></span></div>
-      <div class="auth-form-wrap">
-        <span class="overline">Presint 18 Marketplace</span>
-        <h2 id="authHeading">Welcome back</h2>
-        <p class="auth-intro" id="authIntro">Sign in with your marketplace account.</p>
-
-        <div class="auth-tabs" role="tablist">
-          <button type="button" class="auth-tab active" data-auth-mode="signin" role="tab" aria-selected="true">Sign in</button>
-          <button type="button" class="auth-tab" data-auth-mode="signup" role="tab" aria-selected="false">Create account</button>
-        </div>
-
-        <form id="authForm" novalidate>
-          <div id="authRegisterFields" hidden>
-            <label class="field"><span>Full name</span><input name="fullName" autocomplete="name" placeholder="Your name"></label>
-            <fieldset class="field choice-cards">
-              <legend>I want to…</legend>
-              <label><input type="radio" name="accountType" value="buyer" checked><span><strong>Buy things</strong><small>Browse and order</small></span></label>
-              <label><input type="radio" name="accountType" value="seller"><span><strong>Buy &amp; sell</strong><small>Run a unit shop</small></span></label>
-            </fieldset>
-            <label class="field" id="departmentField" hidden><span>Your unit / department</span><input name="department" placeholder="e.g. Unit Pemakanan"></label>
-          </div>
-          <label class="field"><span>Email address</span><input name="email" type="email" autocomplete="email" placeholder="name@example.com" required></label>
-          <label class="field" id="passwordField"><span>Password</span>
-            <span class="password-wrap"><input name="password" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required><button type="button" class="reveal" id="togglePassword" aria-label="Show password">Show</button></span>
-          </label>
-          <div class="auth-row" id="forgotRow"><button type="button" class="link-button" id="forgotPassword">Forgot password?</button></div>
-          <div class="auth-message" id="authMessage" role="status" aria-live="polite"></div>
-          <button class="btn btn-primary btn-block" id="authSubmit" type="submit">Sign in</button>
-        </form>
-
-        <div class="auth-config-warning" id="authConfigWarning" hidden></div>
-
-        <div class="auth-divider"><span>or</span></div>
-        <button type="button" class="btn btn-ghost btn-block" id="demoButton">Look around with sample data</button>
-        <p class="auth-fine">The sample preview runs only in this browser — nothing is sent to the clinic database.</p>
-      </div>
-      <div class="auth-bottom"><span>For the Klinik Kesihatan Presint 18 community</span><span>Prices in RM</span></div>
-    </div>
-  </section>
-
-  <!-- ============ MARKETPLACE ============ -->
-  <div class="demo-banner" id="demoBanner" hidden>
-    <span><b>Sample preview.</b> You're browsing demo data saved only in this browser.</span>
-    <button type="button" class="link-button" id="demoExit">Exit preview</button>
-  </div>
-
-  <header class="topbar">
-    <div class="topbar-inner wrap">
-      <a class="brand" href="#top" aria-label="Presint 18 Market home"><span class="brand-mark">P18</span><span class="brand-name">Presint 18<b>Market</b></span></a>
-      <nav class="top-actions" aria-label="Account">
-        <button class="btn btn-quiet hide-sm" id="sellerOpen" hidden>＋ Add a listing</button>
-        <button class="btn btn-quiet hide-sm" id="myOrdersOpen" hidden>My orders</button>
-        <button class="btn btn-quiet hide-sm" id="sellerOrdersOpen" hidden>Shop orders</button>
-        <button class="btn btn-quiet hide-sm" id="adminOpen" hidden>Admin</button>
-        <button class="bag-button" id="cartOpen" aria-label="Open your bag">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 13H5L6 7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 7a3 3 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-          <span class="hide-sm">Bag</span><b id="cartCount">0</b>
-        </button>
-        <button class="avatar" id="profileOpen" aria-label="Your account">A</button>
-      </nav>
-    </div>
-  </header>
-
-  <main id="top">
-    <section class="hero wrap">
-      <div class="hero-copy">
-        <span class="overline">Klinik Kesihatan Presint 18</span>
-        <h1>The clinic <em>marketplace</em></h1>
-        <p class="hero-lead">Food, crafts, printables and services — made and offered by the units and departments you work with.</p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="#market">Start browsing</a>
-          <button class="btn btn-ghost" id="shopOpenHero" hidden>Open a unit shop</button>
-        </div>
-        <ol class="steps" aria-label="How it works">
-          <li><b>1</b><span><strong>Browse</strong> shops by clinic</span></li>
-          <li><b>2</b><span><strong>Add</strong> items to your bag</span></li>
-          <li><b>3</b><span><strong>Pay</strong> cash or by QR</span></li>
-        </ol>
-      </div>
-      <figure class="hero-art">
-        <img class="hero-photo" src="assets/clinic-facade.png" alt="Klinik Kesihatan Putrajaya Presint 18 building">
-        <figcaption><span>✳</span> Our place, our market</figcaption>
-      </figure>
-    </section>
-
-    <section class="highlights wrap" id="highlights" aria-labelledby="highlightTitle" hidden>
-      <div class="section-heading">
-        <div><span class="overline">Clinic picks</span><h2 id="highlightTitle">Today's <em>finds</em></h2></div>
-        <p class="section-note">Hand-picked each day. Tap one to add it to your bag.</p>
-      </div>
-      <div class="highlight-grid" id="highlightGrid"></div>
-    </section>
-
-    <section class="market wrap" id="market" aria-labelledby="marketTitle">
-      <div class="section-heading">
-        <div><span class="overline">All shops</span><h2 id="marketTitle">Take a <em>look around</em></h2></div>
-        <button class="btn btn-ghost" id="shopOpen" hidden>＋ Open a unit shop</button>
-      </div>
-
-      <div class="controls">
-        <label class="search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <input id="searchInput" type="search" placeholder="Search shops and items" aria-label="Search shops and items">
-          <kbd id="searchKey">Ctrl K</kbd>
-        </label>
-        <div class="control-row">
-          <span class="control-label">Clinic</span>
-          <div class="chips" id="regionPicker" role="group" aria-label="Filter by clinic"></div>
-        </div>
-        <div class="control-row">
-          <span class="control-label">Type</span>
-          <div class="chips" id="filters" role="group" aria-label="Filter by type"></div>
-        </div>
-      </div>
-
-      <p class="result-count" id="resultCount" aria-live="polite"></p>
-      <div class="shop-feed" id="shopFeed"></div>
-    </section>
+<body data-page="home">
+  <div id="site-header"></div>
+  <main id="main">
+    <div id="home-root"><section class="wrap page-pad"><div class="skeleton" style="height:420px"></div></section></div>
   </main>
-
-  <footer class="footer">
-    <div class="wrap footer-inner">
-      <div class="brand"><span class="brand-mark">P18</span><span class="brand-name">Presint 18<b>Market</b></span></div>
-      <p>Payments are arranged directly with each shop. QR receipts are checked by the seller.</p>
-    </div>
-  </footer>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="scrim" id="scrim"></div>
-
-  <aside class="cart-drawer" id="cartDrawer" aria-label="Your bag" aria-hidden="true">
-    <div class="drawer-head">
-      <div><span class="overline">Your bag</span><h2>Items <span id="drawerCount">(0)</span></h2></div>
-      <button class="icon-button" data-close aria-label="Close bag">×</button>
-    </div>
-    <div class="cart-items" id="cartItems"></div>
-    <div class="cart-bottom">
-      <div class="subtotal"><span>Subtotal</span><strong id="subtotal">RM 0.00</strong></div>
-      <p>You'll pay each shop directly — cash on collection or QR.</p>
-      <button class="btn btn-primary btn-block" id="checkoutOpen">Continue to checkout</button>
-    </div>
-  </aside>
-
-  <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
-    <div class="modal-head">
-      <div><span class="overline" id="modalEyebrow"></span><h2 id="modalTitle"></h2></div>
-      <button class="icon-button" data-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-content" id="modalContent"></div>
-  </section>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <script src="auth.js"></script>
-  <script src="app.js"></script>
-  <script src="workflows.js"></script>
+  <div id="site-footer"></div>
 </body>
 </html>
