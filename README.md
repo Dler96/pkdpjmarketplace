@@ -1,74 +1,123 @@
-# Presint 18 Market
+# PKDPJ Market
 
-A small marketplace website for Klinik Kesihatan Presint 18 and the clinics around it (Pejabat Kesihatan Putrajaya, KK Presint 9, 11, 14 and 18). Units and departments open shops, list food, goods, printables or services, and colleagues order with cash or QR payment. Prices are in RM.
+A mobile-first marketplace for the units and departments of **Pejabat Kesihatan Daerah Putrajaya** and **Klinik Kesihatan Presint 9, 11, 14 and 18**. Units open shops, list food, goods, printables or services, and colleagues order and pay each shop by cash or QR.
 
-It's a plain static site — HTML, CSS and JavaScript, no build step — with [Supabase](https://supabase.com) for accounts, data, images and orders.
+**GitHub** stores the code · **Cloudflare Pages** hosts it · **Supabase** runs accounts, data, images and orders.
 
-## Try it in 30 seconds
+## What's in it
 
-1. Unzip the folder.
-2. **Windows:** double-click `start-local-server.bat`. **Mac:** double-click `start-local-server.command`. (Both need Python. Or use VS Code's *Live Server* extension.)
-3. Your browser opens `http://localhost:8080`. Sign in, or click **Look around with sample data** to explore everything without an account.
+**Buyers**
+- **Home:** greeting, search, *Today's finds*, shop by clinic, new arrivals, and shops, plus alerts for orders in progress.
+- **Market:** shops or items view, clinic and type filters with counts, search, and sorting by price or newest.
+- **Shop and item pages:** banner, details, *WhatsApp seller*, quantity picker, *Add to bag* / *Buy now*, and "More from this shop".
+- **Bag and checkout:** one bag for several shops. Checkout creates **one order per shop**, offers *deliver to my unit* or *I'll collect*, and takes cash or QR. Your details are remembered.
+- **QR payments:** each shop's QR is shown after ordering. You upload the receipt, and the seller confirms.
+- **My orders:** a progress bar (Sent → Accepted → Ready → Done), cancelling before the seller accepts (stock goes back on sale), WhatsApp the seller, view your receipt, and *Order again*.
 
-Opening `index.html` directly also works for browsing, but email links (confirmation, password reset) need the site to be served over `http://` or `https://`.
+**Sellers** (*Sell* tab)
+- **Turn on selling** from your account, open one or more shops, and customise the colour, symbol, banner words, cover photo, WhatsApp number and payment QR.
+- **Items:** add or edit with photo (resized automatically for mobile data), icon, description, condition and price. Use **Quick stock** for restocking, hide items, and pause or reopen your shop.
+- **Shop orders:** filters (To do, New, Accepted, Ready, Done, Cancelled) and one-tap Accept → Mark ready → Complete. Confirm cash received, view and verify QR receipts, cancel (stock is returned automatically), and send ready-written WhatsApp messages.
+- **Sales:** paid this month, money waiting for payment, last 6 months and best sellers.
 
-## Accounts
+**Admins** (*Admin* in the menu)
+- **Overview:** approve or decline new shops and set **Today's picks** (#1–#3, can be marked sponsored).
+- **Shops, Orders and Members:** suspend or reactivate shops, update any order, and **make or remove admins**.
 
-- **Buyer** — browse, add to bag, check out, see *My orders*, upload QR receipts.
-- **Buyer & seller** — everything above, plus open a unit shop, add items, manage stock and prices, and see *Shop orders*.
-- **Admin** — approves new shops, picks *Today's finds*, and can update any order. Make someone admin in the Supabase SQL editor:
-  ```sql
-  update public.profiles set is_admin = true where id = '<auth user UUID>';
-  ```
+**Everywhere**
+- **Separate pages** (`/market`, `/shop`, `/item`, `/bag`, `/orders`, `/sell`, `/admin`, `/account`) with smooth page transitions and sections that animate in.
+- **Phone layout:** a bottom tab bar with the bag in the middle, and pop-ups that slide up from the bottom.
+- **Installable:** staff can add it to their phone home screen like an app.
 
-New shops start as **waiting for approval**. The seller can see their own shop and add items straight away; everyone else sees it once an admin approves it.
+---
 
-## Supabase setup
+## Setup — step by step
 
-`config.js` already holds the project URL and publishable key. Never put the `service_role` key in this site.
+### Step 1 — Upgrade the database (keeps all existing data)
+Open **Supabase → your project → SQL Editor → New query**.
 
-In the Supabase **SQL Editor**, run the files in `supabase/`:
+- **If your project already ran the old SQL files** (it has shops, products and orders tables): paste and run **`supabase/04-v2-upgrade.sql`** only.
+- **If this is a brand-new Supabase project:** run the four files **in order** — `01-schema.sql` → `02-upgrade-marketplace-workflows.sql` → `03-fix-highlights-timezone.sql` → `04-v2-upgrade.sql`.
+- **Not sure?** Run all four in order. They are all safe to run again. ⚠️ Always run **04 last**. If you ever re-run 01–03, run 04 again afterwards.
 
-| Situation | Run |
-| --- | --- |
-| Brand-new project | `schema.sql` → `upgrade-marketplace-workflows.sql` → `fix-highlights-timezone.sql` |
-| Project that already ran the base schema | `upgrade-marketplace-workflows.sql` (if not yet run) → `fix-highlights-timezone.sql` |
+You should see "Success. No rows returned."
 
-All three are additive; don't reset the database.
+### Step 2 — Make yourself admin (skip if you already are)
+1. Go to **Authentication → Users** and copy your user's **UID**.
+2. In the SQL Editor, run:
+```sql
+update public.profiles set is_admin = true where id = 'PASTE-YOUR-UID-HERE';
+```
+After that you can make other admins from the website (**Admin → Members**).
 
-Then in **Authentication → URL Configuration**, set the Site URL to where the site is hosted (and add `http://localhost:8080` to the redirect URLs if you test locally).
+### Step 3 — Check `public/config.js`
+It already has your project URL and publishable key. You can also add an admin WhatsApp number for a *Get help* link:
+```js
+supportWhatsapp: "60123456789",
+```
+Never put the `service_role` / secret key in this file.
 
-## Publishing
+### Step 4 — Replace the files on GitHub
+The site has a new folder layout. In your GitHub repository:
+1. **Delete the old files** at the top level: `index.html`, `app.js`, `auth.js`, `workflows.js`, `styles.css`, `config.js`, `_headers`, `assets/`, and the old `supabase/` folder.
+2. **Upload** the `public` folder, the `supabase` folder, the `tools` folder and `README.md` from this package, then commit.
 
-- **GitHub Pages:** push these files to the repo root, then *Settings → Pages → Deploy from a branch → main / root*.
-- **Cloudflare Pages:** connect the repo, framework preset *None*, no build command, output directory `.`. The `_headers` file adds security headers.
+### Step 5 — Cloudflare Pages settings
+In **Cloudflare → Workers & Pages → your project → Settings → Build** (or create a new Pages project connected to the repo):
+- Framework preset: **None**
+- Build command: **`exit 0`**
+- Build output directory: **`public`** ← changed from before
+- Save, then **Deployments → Retry / Create deployment**.
 
-## Files
+(GitHub Pages is not recommended for this version. Use Cloudflare Pages so addresses like `/market` work.)
 
-| Path | Purpose |
-| --- | --- |
-| `index.html` | Page structure: sign-in screen, market, bag, dialogs |
-| `styles.css` | All styling (responsive, phone-friendly) |
-| `auth.js` | Sign in, create account, password reset, sample preview |
-| `app.js` | Shops, items, bag, checkout, seller tools |
-| `workflows.js` | My orders, Shop orders, receipts, admin control room |
-| `config.js` | Supabase URL + publishable key |
-| `supabase/*.sql` | Database tables, security policies, storage and order functions |
-| `start-local-server.*` | One-click local preview |
+### Step 6 — Supabase login links
+Go to **Supabase → Authentication → URL Configuration**:
+- **Site URL:** your website, e.g. `https://pkdpjmarket.pages.dev`
+- **Redirect URLs:** add `https://pkdpjmarket.pages.dev/account`
 
-## What was fixed in this version
+This makes the email confirmation and password-reset links come back to the site.
 
-- **The site crashed on load.** `app.js` had a stray `})` that stopped the entire marketplace script from running, so after signing in nothing worked.
-- **Sellers couldn't open shops.** The page created shops as `active`, which the database rejects for non-admins. Shops are now submitted as *pending*, and sellers can see and stock their pending shops.
-- **"Customize" appeared on everyone's shops.** Edit tools now show only on your own shop.
-- **Today's finds disappeared between midnight and 8 am** (UTC vs Malaysia date). Fixed in the page and in `fix-highlights-timezone.sql`.
-- The README pointed to `supabase/upgrade-marketplace-workflows.sql`, which didn't exist; the SQL is now in `supabase/`.
-- The bag showed `$0.00`, demo shop categories didn't match the filters, and admin approvals didn't refresh the market.
+### Step 7 — Test on your phone
+1. **Admin:** log in, open **Admin**, and approve any waiting shops.
+2. **Seller:** create a second account → *Sell* → *Turn on selling* → open a shop (it waits for approval) → add an item with a photo → upload a payment QR in *Edit shop*.
+3. **Admin:** approve that shop.
+4. **Buyer:** with a third account, add items from two different shops → checkout. You get **two orders**. Pay one by QR and upload a receipt.
+5. **Seller:** in *Sell → Orders*, Accept → Mark ready → view the receipt → confirm payment → Complete. Then check *Sales*.
+6. **Buyer:** cancel a new order and check the stock went back up.
 
-**Easier to use:** larger readable text, a header that fits on phones, clinic and type filters with counts, "Only 2 left" / "Sold out" labels, a one-step checkout with delivery-or-collect and remembered contact details, clear QR payment steps, an account menu, password reset and show-password, friendly error messages, loading and empty states, a sample-data preview, and a *Stock & prices* editor for sellers.
+---
 
-## Before real use
+## Good to know
+- **Existing data is kept.** Old orders that mixed several shops still show; each seller sees only their own items in them.
+- **One order per shop:** every seller handles and gets paid for only their part of a checkout.
+- **Stock:** taken off when someone orders, and returned automatically when an order is cancelled (once only).
+- **Approval:** sellers can pause or reopen an approved shop themselves, but only admins can approve, decline or suspend.
+- **QR receipts are not automatic bank verification.** Sellers must check their account before confirming payment. Receipts are private to the buyer, the seller and admins.
+- **Privacy:** only signed-in members can see shops and items. Please don't put patient information on the market.
+- **Email confirmation:** if *Confirm email* is on in Supabase (Authentication → Providers → Email), new members must click the link in their email before logging in.
 
-- Test sign-up, shop approval, checkout and receipts on the hosted site with a buyer, seller and admin account.
-- QR payments are **not** verified automatically — sellers must check their bank account before marking an order paid.
-- Use test data while developing; avoid patient or sensitive personal information.
+## File map
+```
+public/                     ← the website (Cloudflare serves this folder)
+  index.html                Home
+  market.html               Browse shops / items
+  shop.html, item.html      Shop and item pages
+  bag.html                  Bag + checkout
+  orders.html               My orders
+  sell.html                 Seller hub (shops, items, orders, sales)
+  admin.html                Admin control room
+  account.html              Log in / register / reset / profile
+  404.html                  Not found
+  config.js                 Supabase URL + publishable key
+  manifest.webmanifest      "Add to Home Screen" app settings
+  _headers                  Security headers for Cloudflare
+  assets/css/site.css       Design (mobile-first)
+  assets/js/core.js         Shared: header, tab bar, login, market data, bag
+  assets/js/*.js            One script per page
+  assets/img/               Clinic photos and app icons
+supabase/
+  01 … 03                   Your original database files (unchanged)
+  04-v2-upgrade.sql         New: per-shop checkout, cancellations, profiles, pause shop, etc.
+tools/build-pages.py        Regenerates the HTML page shells (optional, for developers)
+```
