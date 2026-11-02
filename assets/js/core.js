@@ -113,7 +113,7 @@
     if (/already registered|already been registered/i.test(t)) return 'There is already an account with this email. Try logging in.';
     if (/failed to fetch|network|load failed/i.test(t)) return 'Could not connect. Check your internet and try again.';
     if (/rate limit|too many/i.test(t)) return 'Too many attempts. Please wait a minute and try again.';
-    if (/row-level security|permission denied/i.test(t)) return 'You do not have permission to do that.';
+    if (/row-level security|permission denied|unauthorized/i.test(t)) return 'You do not have permission to do that.' + (/photo upload/i.test(t) ? ' (photo upload — run 07-fix-shop-uploads.sql)' : '');
     if (/JWT|jwt expired/i.test(t)) return 'Your session expired. Please log in again.';
     return t || 'Something went wrong. Please try again.';
   }
@@ -230,7 +230,8 @@
     if (keepOriginal) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Use a PNG, JPG or WebP image up to 5 MB.'); }
     else { blob = await shrinkImage(file, maxSide, square); type = 'image/jpeg'; ext = 'jpg'; }
     const path = `${shopId}/${prefix}${crypto.randomUUID()}.${ext}`;
-    check(await db.storage.from('marketplace-images').upload(path, blob, { contentType: type, upsert: false }));
+    const up = await db.storage.from('marketplace-images').upload(path, blob, { contentType: type, upsert: false });
+    if (up.error) throw new Error('Photo upload: ' + (up.error.message || 'failed'));
     return path;
   }
 
