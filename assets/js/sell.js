@@ -64,7 +64,7 @@
       const canPause = ['active', 'paused'].includes(shop.status);
       return h('div', { class: 'hub-shop reveal', id: `shop-${shop.id}`, style: { scrollMarginTop: '90px' } },
         h('div', { class: 'hub-shop-head', style: { '--banner': shop.theme || '#e5dfd1' } },
-          h('span', { class: 'symbol' }, shop.cover ? h('img', { src: shop.cover, alt: '' }) : shop.symbol || '✨'),
+          M.shopLogo(shop, 'symbol'),
           h('div', {}, h('strong', { text: shop.name }), h('span', { class: 'small muted', text: `${c.short} · ${shop.location}` })),
           badge(SHOP_STATUS, shop.status)),
         shop.status === 'pending' ? h('div', { class: 'notice notice-warn', style: { margin: '12px 14px 0' }, text: 'Waiting for admin approval. You can add items now — buyers see the shop once it is approved.' }) : null,
@@ -113,13 +113,20 @@
     const slug = h('input', { maxlength: '40', value: shop?.slug || '', placeholder: 'e.g. dapur-sihat', autocapitalize: 'off', spellcheck: 'false',
       oninput: e => { e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'); } });
     const cover = h('input', { type: 'file', accept: 'image/*' });
+    const logo = h('input', { type: 'file', accept: 'image/*' });
+    const sample = shop || s.market?.shops?.[0];
+    const canLogo = !sample || 'logo_image_path' in sample;   // needs 06-shop-pages.sql
+    let removeLogo = false;
     const qr = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp' });
     let removeCover = false;
-    const preview = h('div', { class: 'shop-hero', style: { minHeight: '130px', margin: '0 0 16px' } });
+    const banner = h('div', { class: 'shop-hero', style: { minHeight: '130px', margin: 0 } });
+    const avatar = h('span', { class: 'sf-logo edit-logo' });
+    const preview = h('div', { class: 'edit-preview' }, banner, avatar);
     const drawPreview = () => {
-      const file = cover.files[0];
-      preview.style.setProperty('--banner', $('input[name=theme]:checked', form)?.value || f.theme);
-      fill(preview,
+      const file = cover.files[0], lf = logo.files[0], theme = $('input[name=theme]:checked', form)?.value || f.theme;
+      preview.style.setProperty('--banner', theme);
+      fill(avatar, lf ? h('img', { src: URL.createObjectURL(lf), alt: '' }) : shop?.logo && !removeLogo ? h('img', { src: shop.logo, alt: '' }) : ($('input[name=symbol]:checked', form)?.value || f.symbol));
+      fill(banner,
         file ? h('img', { src: URL.createObjectURL(file), alt: '' }) : shop?.cover && !removeCover ? h('img', { src: shop.cover, alt: '' }) :
           [h('span', { class: 'banner-word', style: { fontSize: '24px' }, text: word.value || 'made with care' }), h('span', { class: 'banner-symbol', text: $('input[name=symbol]:checked', form)?.value || f.symbol })],
         h('span', { class: 'market-tag', style: { '--market': market(mkt.value).color } }, h('i', { class: 'dot' }), market(mkt.value).short));
@@ -142,7 +149,9 @@
       h('span', { class: 'label', text: 'Banner symbol' }),
       h('div', { class: 'emoji-grid', style: { marginBottom: '16px' } }, M.SYMBOLS.map(x => h('label', { class: 'emoji-opt' }, h('input', { type: 'radio', name: 'symbol', value: x, checked: x === f.symbol, onchange: drawPreview }), h('span', { text: x })))),
       h('div', { class: 'field' }, h('label', { text: 'Banner words' }), word),
-      h('div', { class: 'field' }, h('label', { text: 'Cover photo (optional)' }), cover, h('small', { text: 'Replaces the colour banner. Landscape photos look best.' }),
+      canLogo ? h('div', { class: 'field' }, h('label', { text: 'Profile picture (optional)' }), logo, h('small', { text: 'Your shop logo or a photo. It is cropped to a square. Without one, your banner symbol is used.' }),
+        shop?.logo_image_path ? h('label', { class: 'check', style: { marginTop: '8px' } }, h('input', { type: 'checkbox', onchange: e => { removeLogo = e.target.checked; drawPreview(); } }), 'Remove current profile picture') : null) : null,
+      h('div', { class: 'field' }, h('label', { text: 'Banner photo (optional)' }), cover, h('small', { text: 'Wide photo across the top of your shop page. Replaces the colour banner. Landscape photos look best.' }),
         shop?.cover_image_path ? h('label', { class: 'check', style: { marginTop: '8px' } }, h('input', { type: 'checkbox', onchange: e => { removeCover = e.target.checked; drawPreview(); } }), 'Remove current cover photo') : null),
       h('div', { class: 'field' }, h('label', { text: shop?.payment_qr_path ? 'Replace payment QR' : 'Payment QR (DuitNow / bank)' }), qr,
         h('small', { text: shop?.payment_qr_path ? 'A QR is already set. Leave empty to keep it.' : 'Lets buyers pay you by QR. PNG, JPG or WebP up to 5 MB.' })),
@@ -153,6 +162,7 @@
         h('button', { class: 'btn btn-primary', type: 'submit' }, shop ? 'Save shop' : 'Submit for approval')));
     [word, mkt].forEach(x => x.addEventListener('input', drawPreview));
     cover.addEventListener('change', drawPreview);
+    logo.addEventListener('change', drawPreview);
     const mdl = modal(shop ? 'Edit shop' : 'Open a shop', form, { wide: true, eyebrow: 'Seller' });
     drawPreview();
     form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
@@ -172,8 +182,10 @@
         id = check(await M.db.from('shops').insert({ ...row, owner_id: s.user.id, status: 'pending' }).select('id').single()).id;
       }
       const upd = shop ? { ...row } : {};
-      if (cover.files[0]) upd.cover_image_path = await M.uploadShopImage(cover.files[0], id, 'cover-');
+      if (cover.files[0]) upd.cover_image_path = await M.uploadShopImage(cover.files[0], id, 'cover-', false, { maxSide: 1800 });
       else if (removeCover) upd.cover_image_path = null;
+      if (canLogo && logo.files[0]) upd.logo_image_path = await M.uploadShopImage(logo.files[0], id, 'logo-', false, { maxSide: 500, square: true });
+      else if (canLogo && removeLogo) upd.logo_image_path = null;
       if (qr.files[0]) upd.payment_qr_path = await M.uploadShopImage(qr.files[0], id, 'qr-', true);
       if (Object.keys(upd).length) check(await M.db.from('shops').update(upd).eq('id', id));
       mdl.close(); toast(shop ? 'Shop saved.' : 'Shop submitted! You can add items while it waits for approval.');

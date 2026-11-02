@@ -586,3 +586,13 @@ h1 em, h2 em { background: linear-gradient(90deg, var(--green), #4f9a78, var(--a
 .fx-toggle { width: 38px; height: 38px; opacity: .9; }
 .fx-toggle .ico { width: 18px; height: 18px; }
 @media (min-width: 960px) { .sf-word { top: 26px; } .fx-toggle { width: 44px; height: 44px; } }
+
+/* shop profile pictures */
+.shop-body { position: relative; }
+.shop-avatar { position: absolute; right: 14px; top: -26px; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; background: var(--banner); border: 3px solid var(--surface); box-shadow: 0 8px 18px -10px #1d2c2588; overflow: hidden; z-index: 1; }
+.shop-avatar img, .seller-box .symbol img, .hub-shop-head .symbol img { width: 100%; height: 100%; object-fit: cover; }
+.seller-box .symbol { overflow: hidden; }
+.sf-cover > img + .market-tag { box-shadow: var(--shadow-sm); }
+.sf-cover:has(> img)::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 50%, #0f1a1440); }
+.edit-preview { position: relative; margin: 0 0 46px; }
+.edit-logo { position: absolute; left: 16px; bottom: -34px; width: 76px; height: 76px; margin: 0; font-size: 38px; border-radius: 22px; animation: none; }

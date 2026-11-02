@@ -44,7 +44,7 @@
           ] : h('div', { class: 'notice' + (shop.mine ? ' notice-info' : ' notice-warn') }, shop.mine ? 'This is your item. Manage stock and price in Sell.' : !shop.open ? 'This shop is not taking orders right now.' : i.stock <= 0 ? 'Sold out for now — check back later.' : 'This item is not available.'),
           shop.mine ? h('a', { class: 'btn btn-primary', href: `/sell#shop-${shop.id}` }, icon('edit'), 'Edit in Sell') : null,
           h('a', { class: 'seller-box', href: M.shopUrl(shop), style: { '--banner': shop.theme || '#e5dfd1' } },
-            h('span', { class: 'symbol', text: shop.symbol || '✨' }),
+            M.shopLogo(shop, 'symbol'),
             h('div', {}, h('strong', { text: shop.name }), h('small', { text: `${shop.unit_department} · ${shop.location}` })), icon('arrow')),
           wa && !shop.mine ? h('a', { class: 'btn btn-soft btn-block', style: { marginTop: '10px' }, href: wa, target: '_blank', rel: 'noopener' }, icon('whatsapp'), 'Ask the seller') : null,
           h('p', { class: 'hint', style: { marginTop: '14px' } }, icon('wallet'), ` Pay ${shop.name} directly — cash${shop.payment_qr_path ? ' or QR' : ''}. ${i.category === 'Services' ? 'The seller will contact you to arrange a time.' : ''}`))),

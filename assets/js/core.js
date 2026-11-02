@@ -164,6 +164,34 @@
     state.admin = !!state.profile.is_admin;
     state.seller = state.profile.account_type === 'seller';
   }
+  // Phone number is mandatory for every buyer and seller. Accounts without one are asked once, before anything else.
+  const realName = n => /\s/.test(n.trim()) && !/\d/.test(n);
+  function phoneGate() {
+    return new Promise(resolve => {
+      const p = state.profile;
+      const name = h('input', { maxlength: '100', value: p.full_name || '', autocomplete: 'name', placeholder: 'e.g. Nur Aisyah binti Ahmad' });
+      const phone = h('input', { type: 'tel', maxlength: '24', value: p.phone || '', autocomplete: 'tel', inputmode: 'tel', placeholder: '0123456789' });
+      const form = h('form', { novalidate: true },
+        h('p', { class: 'muted', text: 'Sellers and buyers contact each other by phone or WhatsApp about orders, so every account needs a phone number.' }),
+        h('div', { class: 'field' }, h('label', { text: 'Full name' }), name, h('small', { text: 'Recommended: your real name, so sellers and buyers know who they are dealing with.' })),
+        h('div', { class: 'field' }, h('label', { text: 'Phone / WhatsApp (required)' }), phone),
+        h('button', { class: 'btn btn-primary btn-lg btn-block', type: 'submit' }, 'Save and continue'),
+        h('p', { style: { textAlign: 'center', marginTop: '14px' } }, h('button', { class: 'link-btn', type: 'button', onclick: () => signOut() }, 'Log out instead')));
+      const dlg = modal('Add your phone number', form, { eyebrow: 'One quick step' });
+      dlg.querySelector('.modal-head .icon-btn')?.remove();
+      dlg.addEventListener('cancel', e => e.preventDefault());           // Esc cannot skip it
+      const realClose = dlg.close.bind(dlg); dlg.close = () => {};      // backdrop tap cannot skip it either
+      form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+        const n = name.value.trim(), ph = phone.value.trim();
+        if (n.length < 2) { name.focus(); throw new Error('Enter your name.'); }
+        if (!PHONE.test(ph) || !waNumber(ph)) { phone.focus(); throw new Error('Enter a valid phone number, e.g. 0123456789.'); }
+        if (!realName(n) && !(await confirmBox('Use this name?', `"${n}" looks like a nickname. We recommend your real full name so people can trust your orders.`, 'Keep it'))) return;
+        check(await db.from('profiles').update({ full_name: n, phone: ph }).eq('id', state.user.id));
+        state.profile = { ...p, full_name: n, phone: ph };
+        resolve(); realClose(); toast('Thanks! Your details are saved.');
+      }, form); });
+    });
+  }
   const displayName = () => state.profile?.full_name || state.user?.user_metadata?.full_name || state.user?.email || 'Account';
   const initials = () => displayName().trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'U';
 
@@ -179,7 +207,7 @@
   }
   const imageUrl = (path, bucket = 'marketplace-images') => path ? urlCache.get(bucket + path) || '' : '';
   // Resize photos in the browser so uploads are fast on mobile data.
-  function shrinkImage(file, maxSide = 1200) {
+  function shrinkImage(file, maxSide = 1200, square = false) {
     return new Promise((resolve, reject) => {
       if (!file) return resolve(null);
       if (!/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
@@ -187,25 +215,27 @@
       const img = new Image(), url = URL.createObjectURL(file);
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not open that image.')); };
       img.onload = () => {
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-        const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        const side = Math.min(img.width, img.height);                       // square = centre crop (profile pictures)
+        const sw = square ? side : img.width, sh = square ? side : img.height, sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+        const scale = Math.min(1, maxSide / Math.max(sw, sh));
+        const c = document.createElement('canvas'); c.width = Math.round(sw * scale); c.height = Math.round(sh * scale);
+        c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
         c.toBlob(b => b ? resolve(b) : reject(new Error('Could not process that image.')), 'image/jpeg', 0.82);
       };
       img.src = url;
     });
   }
-  async function uploadShopImage(file, shopId, prefix = '', keepOriginal = false) {
+  async function uploadShopImage(file, shopId, prefix = '', keepOriginal = false, { maxSide = 1200, square = false } = {}) {
     let blob = file, type = file.type, ext = { 'image/png': 'png', 'image/webp': 'webp' }[file.type] || 'jpg';
     if (keepOriginal) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Use a PNG, JPG or WebP image up to 5 MB.'); }
-    else { blob = await shrinkImage(file); type = 'image/jpeg'; ext = 'jpg'; }
+    else { blob = await shrinkImage(file, maxSide, square); type = 'image/jpeg'; ext = 'jpg'; }
     const path = `${shopId}/${prefix}${crypto.randomUUID()}.${ext}`;
     check(await db.storage.from('marketplace-images').upload(path, blob, { contentType: type, upsert: false }));
     return path;
   }
 
   // ---------------- market data (cached ~30s between pages) ----------------
-  const CACHE = 'pkdpj-market-v1';
+  const CACHE = 'pkdpj-market-v2';
   async function loadMarket(fresh = false) {
     if (!fresh) {
       try {
@@ -216,15 +246,15 @@
     const SHOP_COLS = 'id,owner_id,name,unit_department,location,market_id,category,bio,theme,symbol,word,cover_image_path,payment_qr_path,whatsapp,status,created_at,products(id,shop_id,name,description,category,unit_price_rm,stock_qty,emoji,condition,image_path,active,sort_order,created_at)';
     const shopsQuery = async () => {
       // Works before and after 06-shop-pages.sql (the slug column) has been run.
-      const r = await db.from('shops').select('slug,' + SHOP_COLS).order('created_at', { ascending: false });
-      return r.error && /slug/.test(r.error.message || '') ? db.from('shops').select(SHOP_COLS).order('created_at', { ascending: false }) : r;
+      const r = await db.from('shops').select('slug,logo_image_path,' + SHOP_COLS).order('created_at', { ascending: false });
+      return r.error && /slug|logo_image_path/.test(r.error.message || '') ? db.from('shops').select(SHOP_COLS).order('created_at', { ascending: false }) : r;
     };
     const [shopsRes, picksRes] = await Promise.all([
       shopsQuery(),
       db.from('daily_highlights').select('product_id,rank,sponsored').eq('feature_date', todayKL()).order('rank')
     ]);
     const data = { shops: check(shopsRes) || [], picks: picksRes.error ? [] : picksRes.data || [] };
-    await signImages(data.shops.flatMap(s => [s.cover_image_path, s.payment_qr_path, ...(s.products || []).map(p => p.image_path)]));
+    await signImages(data.shops.flatMap(s => [s.cover_image_path, s.logo_image_path, s.payment_qr_path, ...(s.products || []).map(p => p.image_path)]));
     try { sessionStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), user: state.user.id, data, urls: [...urlCache] })); } catch { /* full */ }
     return hydrate(data);
   }
@@ -233,7 +263,7 @@
     const uid = state.user?.id;
     const shops = data.shops.filter(s => s.status === 'active' || s.owner_id === uid || state.admin).map(s => ({
       ...s, mine: s.owner_id === uid, open: s.status === 'active',
-      cover: imageUrl(s.cover_image_path), qr: imageUrl(s.payment_qr_path),
+      cover: imageUrl(s.cover_image_path), logo: imageUrl(s.logo_image_path), qr: imageUrl(s.payment_qr_path),
       products: (s.products || []).filter(p => p.active || s.owner_id === uid)
         .sort((a, b) => (a.sort_order - b.sort_order) || String(b.created_at).localeCompare(String(a.created_at)))
         .map(p => ({ ...p, price: Number(p.unit_price_rm), stock: Number(p.stock_qty), photo: imageUrl(p.image_path), shop: null }))
@@ -300,6 +330,8 @@
           h('span', { class: 'item-foot' }, h('b', { class: 'price', text: money(i.price) }), stockNote(i)))),
       canAdd ? h('button', { class: 'add-btn', type: 'button', 'aria-label': `Add ${i.name} to bag`, onclick: e => { e.preventDefault(); bag.add(i); } }, icon('plus')) : null);
   }
+  // Shop profile picture: uploaded logo, else the chosen symbol on the shop colour
+  const shopLogo = (s, cls = 'shop-avatar') => h('span', { class: cls, style: { '--banner': s.theme || '#e5dfd1' }, 'aria-hidden': 'true' }, s.logo ? h('img', { src: s.logo, alt: '', loading: 'lazy' }) : (s.symbol || '✨'));
   const shopUrl = s => `/s/${encodeURIComponent(s.slug || s.id)}`;
   const shopLink = s => location.origin + shopUrl(s);
   function shopCard(s) {
@@ -311,6 +343,7 @@
         h('span', { class: 'market-tag' }, h('i', { class: 'dot' }), m.short),
         !s.open ? h('span', { class: 'status-tag', text: (SHOP_STATUS[s.status] || [s.status])[0] }) : null),
       h('span', { class: 'shop-body' },
+        s.logo ? shopLogo(s) : null,
         h('strong', { class: 'shop-name', text: s.name }),
         h('span', { class: 'shop-meta', text: `${s.unit_department} · ${s.location}` }),
         preview.length ? h('span', { class: 'shop-preview' }, preview.map(p => itemArt(p, 'mini')), h('span', { class: 'shop-count', text: `${s.products.filter(p => p.active).length} item${s.products.filter(p => p.active).length === 1 ? '' : 's'}` }))
@@ -422,6 +455,7 @@
       try {
         await initAuth();
         renderHeader();
+        if (state.user && !String(state.profile?.phone || '').trim() && !opts.noPhoneGate) { loading(false); await phoneGate(); loading(true); renderHeader(); }
         if (opts.auth && !state.user) { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
         if (opts.admin && !state.admin) { fill($('#main'), h('section', { class: 'wrap page-pad' }, empty('shield', 'Admins only', 'This account does not have admin access.', h('a', { class: 'btn btn-primary', href: '/' }, 'Back to home')))); return; }
         if (opts.market && state.user) await loadMarket(opts.fresh);
@@ -443,8 +477,8 @@
     $, $$, h, fill, icon, money, todayKL, when, dateOnly, shortId, badge, waNumber, waLink,
     toast, friendly, loading, run, check, modal, confirmBox,
     signImages, imageUrl, shrinkImage, uploadShopImage, loadMarket, clearMarketCache,
-    bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, stockNote, empty, receiptBox,
-    displayName, renderHeader, reveal, start, signOut
+    bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, shopLogo, stockNote, empty, receiptBox,
+    displayName, renderHeader, reveal, start, signOut, realName
   };
   window.M = api;
 })();

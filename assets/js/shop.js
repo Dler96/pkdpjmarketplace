@@ -38,7 +38,7 @@
 
     const wa = M.waLink(shop.whatsapp, `Hi ${shop.name}, I found your shop on ${M.BRAND}. `);
     const head = h('div', { class: 'sf-head reveal' },
-      h('div', { class: 'sf-logo', 'aria-hidden': 'true' }, shop.cover ? h('img', { src: shop.cover, alt: '' }) : h('span', { text: shop.symbol || '✨' })),
+      M.shopLogo(shop, 'sf-logo'),
       h('div', { class: 'sf-title' },
         h('div', { class: 'pills' },
           h('span', { class: 'sf-status ' + (shop.open ? 'on' : 'off') }, h('i'), shop.open ? 'Open for orders' : (M.SHOP_STATUS[shop.status]?.[0] || shop.status)),
