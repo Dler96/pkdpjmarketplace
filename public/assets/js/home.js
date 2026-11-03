@@ -28,9 +28,10 @@
       icon('search'), h('input', { name: 'q', type: 'search', placeholder: 'Search food, items, shops…', 'aria-label': 'Search the market', enterkeyhint: 'search' }));
 
     const attention = h('div', {});
+    const newsBox = h('div', {});
     fill(root, h('section', { class: 'wrap' },
       h('div', { class: 'greeting reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: hello }), h('h1', {}, first ? `Hi, ${first} ` : 'Hello ', h('em', { text: '👋' })))),
-      search, attention,
+      search, attention, newsBox,
       picks.length ? h('section', { class: 'section' },
         h('div', { class: 'section-head reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: 'Clinic picks' }), h('h2', {}, "Today's ", h('em', { text: 'finds' })))),
         h('div', { class: 'picks reveal d1' }, picks.slice(0, 3).map(p => h('a', { class: 'pick', href: `/item?id=${p.item.id}` },
@@ -54,6 +55,9 @@
         h('h2', {}, 'Got something to ', h('em', { text: 'sell?' })), h('p', { class: 'muted', text: 'Open a shop for your unit — food, crafts, printables or services. It takes about a minute.' }),
         h('a', { class: 'btn btn-primary', href: '/sell' }, 'Start selling', icon('arrow')))) : null));
 
+    // News highlights + upcoming events (best effort, after first paint)
+    loadNews(newsBox);
+
     // Things that need attention (best effort, after first paint)
     try {
       const notes = [];
@@ -67,6 +71,24 @@
       fill(attention, notes);
     } catch { /* not essential */ }
   }, { market: true });
+
+  async function loadNews(box) {
+    if (!M.news) return;
+    try {
+      const posts = await M.news.load({ limit: 40 });
+      if (!posts.length) {
+        return fill(box, h('section', { class: 'section reveal in' }, h('a', { class: 'news-invite', href: '/news' },
+          h('span', { class: 'empty-ico' }, M.icon('news')), h('span', {}, h('strong', { text: 'News & events is live' }), h('small', { text: 'Share PKD news, an event or global news — admins approve posts.' })), M.icon('arrow'))));
+      }
+      const hl = posts.filter(p => p.highlight);
+      const top = (hl.length ? hl : posts).slice(0, 5);
+      const events = posts.filter(M.news.upcoming).sort((a, b) => new Date(a.event_start) - new Date(b.event_start)).slice(0, 3);
+      fill(box, h('section', { class: 'section' },
+        h('div', { class: 'section-head' }, h('div', {}, h('span', { class: 'eyebrow', text: 'PKDPJ community' }), h('h2', {}, hl.length ? 'Highlights ' : 'Latest ', h('em', { text: 'news' }))), h('a', { href: '/news', text: 'All news →' })),
+        M.news.carousel(top),
+        events.length ? h('div', { class: 'event-list stagger', style: { marginTop: '12px' } }, events.map(M.news.eventRow)) : null));
+    } catch { /* news not set up yet — skip quietly */ }
+  }
 
   function guest(root) {
     const steps = [['store', 'Browse', 'Shops from PKD Putrajaya and KK Presint 9, 11, 14 & 18.'], ['bag', 'Add to bag', 'Order from several shops in one go.'], ['wallet', 'Pay your way', 'Cash on collection or scan the shop\'s QR.']];

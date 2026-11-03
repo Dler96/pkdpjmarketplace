@@ -55,7 +55,7 @@
     if (!active(o)) actions.push(h('button', { class: 'btn btn-ghost btn-xs', type: 'button', onclick: () => again(o) }, icon('refresh'), 'Order again'));
     const el = h('article', { class: 'order-card reveal in' },
       h('div', { class: 'order-head' },
-        h('div', {}, shop ? h('a', { href: `/shop?id=${shop.id}` }, h('strong', { text: shop.name })) : h('strong', { text: 'Order' }), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)}` })),
+        h('div', {}, shop ? h('a', { href: M.shopUrl(shop) }, h('strong', { text: shop.name })) : h('strong', { text: 'Order' }), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)}` })),
         h('span', { class: 'order-total', text: money(o.total_rm) })),
       progress(o),
       h('div', { class: 'pills' }, badge(STATUS, o.status), badge(PAY, o.payment_status), h('span', { class: 'badge badge-grey', text: o.payment_method === 'qr' ? 'QR' : 'Cash' })),

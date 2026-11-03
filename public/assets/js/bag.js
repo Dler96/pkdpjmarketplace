@@ -46,7 +46,7 @@
       const shop = m.shop(sid);
       return h('div', { class: 'bag-group reveal' },
         h('div', { class: 'bag-group-head', style: { '--market': M.market(shop.market_id).color } },
-          h('a', { href: `/shop?id=${shop.id}` }, h('i', { class: 'dot' }), shop.name), h('b', { text: money(ls.reduce((n, l) => n + l.item.price * l.qty, 0)) })),
+          h('a', { href: M.shopUrl(shop) }, h('i', { class: 'dot' }), shop.name), h('b', { text: money(ls.reduce((n, l) => n + l.item.price * l.qty, 0)) })),
         ls.map(l => {
           const issue = problem(l);
           const max = Math.min(99, l.item.stock);

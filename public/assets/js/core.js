@@ -73,7 +73,14 @@
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>', logout: '<path d="M9 4H4v16h5M9 12h12M16 7l5 5-5 5"/>',
     pause: '<path d="M9 5v14M15 5v14"/>', play: '<path d="M7 5l12 7-12 7z"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', sparkle: '<path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z"/>'
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', sparkle: '<path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z"/>',
+    share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+    qr: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path d="M14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    snow: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9.5 3.5L12 6l2.5-2.5M9.5 20.5L12 18l2.5 2.5"/>',
+    news: '<path d="M4 5h13v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M7 9h7M7 13h7M7 17h4"/>',
+    sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
   };
   function icon(name, cls = '') {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -107,7 +114,7 @@
     if (/already registered|already been registered/i.test(t)) return 'There is already an account with this email. Try logging in.';
     if (/failed to fetch|network|load failed/i.test(t)) return 'Could not connect. Check your internet and try again.';
     if (/rate limit|too many/i.test(t)) return 'Too many attempts. Please wait a minute and try again.';
-    if (/row-level security|permission denied/i.test(t)) return 'You do not have permission to do that.';
+    if (/row-level security|permission denied|unauthorized/i.test(t)) return 'You do not have permission to do that.' + (/photo upload/i.test(t) ? ' (photo upload — run 07-fix-shop-uploads.sql)' : '');
     if (/JWT|jwt expired/i.test(t)) return 'Your session expired. Please log in again.';
     return t || 'Something went wrong. Please try again.';
   }
@@ -158,6 +165,34 @@
     state.admin = !!state.profile.is_admin;
     state.seller = state.profile.account_type === 'seller';
   }
+  // Phone number is mandatory for every buyer and seller. Accounts without one are asked once, before anything else.
+  const realName = n => /\s/.test(n.trim()) && !/\d/.test(n);
+  function phoneGate() {
+    return new Promise(resolve => {
+      const p = state.profile;
+      const name = h('input', { maxlength: '100', value: p.full_name || '', autocomplete: 'name', placeholder: 'e.g. Nur Aisyah binti Ahmad' });
+      const phone = h('input', { type: 'tel', maxlength: '24', value: p.phone || '', autocomplete: 'tel', inputmode: 'tel', placeholder: '0123456789' });
+      const form = h('form', { novalidate: true },
+        h('p', { class: 'muted', text: 'Sellers and buyers contact each other by phone or WhatsApp about orders, so every account needs a phone number.' }),
+        h('div', { class: 'field' }, h('label', { text: 'Full name' }), name, h('small', { text: 'Recommended: your real name, so sellers and buyers know who they are dealing with.' })),
+        h('div', { class: 'field' }, h('label', { text: 'Phone / WhatsApp (required)' }), phone),
+        h('button', { class: 'btn btn-primary btn-lg btn-block', type: 'submit' }, 'Save and continue'),
+        h('p', { style: { textAlign: 'center', marginTop: '14px' } }, h('button', { class: 'link-btn', type: 'button', onclick: () => signOut() }, 'Log out instead')));
+      const dlg = modal('Add your phone number', form, { eyebrow: 'One quick step' });
+      dlg.querySelector('.modal-head .icon-btn')?.remove();
+      dlg.addEventListener('cancel', e => e.preventDefault());           // Esc cannot skip it
+      const realClose = dlg.close.bind(dlg); dlg.close = () => {};      // backdrop tap cannot skip it either
+      form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+        const n = name.value.trim(), ph = phone.value.trim();
+        if (n.length < 2) { name.focus(); throw new Error('Enter your name.'); }
+        if (!PHONE.test(ph) || !waNumber(ph)) { phone.focus(); throw new Error('Enter a valid phone number, e.g. 0123456789.'); }
+        if (!realName(n) && !(await confirmBox('Use this name?', `"${n}" looks like a nickname. We recommend your real full name so people can trust your orders.`, 'Keep it'))) return;
+        check(await db.from('profiles').update({ full_name: n, phone: ph }).eq('id', state.user.id));
+        state.profile = { ...p, full_name: n, phone: ph };
+        resolve(); realClose(); toast('Thanks! Your details are saved.');
+      }, form); });
+    });
+  }
   const displayName = () => state.profile?.full_name || state.user?.user_metadata?.full_name || state.user?.email || 'Account';
   const initials = () => displayName().trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'U';
 
@@ -173,7 +208,7 @@
   }
   const imageUrl = (path, bucket = 'marketplace-images') => path ? urlCache.get(bucket + path) || '' : '';
   // Resize photos in the browser so uploads are fast on mobile data.
-  function shrinkImage(file, maxSide = 1200) {
+  function shrinkImage(file, maxSide = 1200, square = false) {
     return new Promise((resolve, reject) => {
       if (!file) return resolve(null);
       if (!/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
@@ -181,25 +216,28 @@
       const img = new Image(), url = URL.createObjectURL(file);
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not open that image.')); };
       img.onload = () => {
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-        const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        const side = Math.min(img.width, img.height);                       // square = centre crop (profile pictures)
+        const sw = square ? side : img.width, sh = square ? side : img.height, sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+        const scale = Math.min(1, maxSide / Math.max(sw, sh));
+        const c = document.createElement('canvas'); c.width = Math.round(sw * scale); c.height = Math.round(sh * scale);
+        c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
         c.toBlob(b => b ? resolve(b) : reject(new Error('Could not process that image.')), 'image/jpeg', 0.82);
       };
       img.src = url;
     });
   }
-  async function uploadShopImage(file, shopId, prefix = '', keepOriginal = false) {
+  async function uploadShopImage(file, shopId, prefix = '', keepOriginal = false, { maxSide = 1200, square = false } = {}) {
     let blob = file, type = file.type, ext = { 'image/png': 'png', 'image/webp': 'webp' }[file.type] || 'jpg';
     if (keepOriginal) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Use a PNG, JPG or WebP image up to 5 MB.'); }
-    else { blob = await shrinkImage(file); type = 'image/jpeg'; ext = 'jpg'; }
+    else { blob = await shrinkImage(file, maxSide, square); type = 'image/jpeg'; ext = 'jpg'; }
     const path = `${shopId}/${prefix}${crypto.randomUUID()}.${ext}`;
-    check(await db.storage.from('marketplace-images').upload(path, blob, { contentType: type, upsert: false }));
+    const up = await db.storage.from('marketplace-images').upload(path, blob, { contentType: type, upsert: false });
+    if (up.error) throw new Error('Photo upload: ' + (up.error.message || 'failed'));
     return path;
   }
 
   // ---------------- market data (cached ~30s between pages) ----------------
-  const CACHE = 'pkdpj-market-v1';
+  const CACHE = 'pkdpj-market-v2';
   async function loadMarket(fresh = false) {
     if (!fresh) {
       try {
@@ -207,13 +245,18 @@
         if (c && c.user === state.user.id && Date.now() - c.at < 30000) { c.urls.forEach(([k, v]) => urlCache.set(k, v)); return hydrate(c.data); }
       } catch { /* ignore */ }
     }
+    const SHOP_COLS = 'id,owner_id,name,unit_department,location,market_id,category,bio,theme,symbol,word,cover_image_path,payment_qr_path,whatsapp,status,created_at,products(id,shop_id,name,description,category,unit_price_rm,stock_qty,emoji,condition,image_path,active,sort_order,created_at)';
+    const shopsQuery = async () => {
+      // Works before and after 06-shop-pages.sql (the slug column) has been run.
+      const r = await db.from('shops').select('slug,logo_image_path,' + SHOP_COLS).order('created_at', { ascending: false });
+      return r.error && /slug|logo_image_path/.test(r.error.message || '') ? db.from('shops').select(SHOP_COLS).order('created_at', { ascending: false }) : r;
+    };
     const [shopsRes, picksRes] = await Promise.all([
-      db.from('shops').select('id,owner_id,name,unit_department,location,market_id,category,bio,theme,symbol,word,cover_image_path,payment_qr_path,whatsapp,status,created_at,products(id,shop_id,name,description,category,unit_price_rm,stock_qty,emoji,condition,image_path,active,sort_order,created_at)')
-        .order('created_at', { ascending: false }),
+      shopsQuery(),
       db.from('daily_highlights').select('product_id,rank,sponsored').eq('feature_date', todayKL()).order('rank')
     ]);
     const data = { shops: check(shopsRes) || [], picks: picksRes.error ? [] : picksRes.data || [] };
-    await signImages(data.shops.flatMap(s => [s.cover_image_path, s.payment_qr_path, ...(s.products || []).map(p => p.image_path)]));
+    await signImages(data.shops.flatMap(s => [s.cover_image_path, s.logo_image_path, s.payment_qr_path, ...(s.products || []).map(p => p.image_path)]));
     try { sessionStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), user: state.user.id, data, urls: [...urlCache] })); } catch { /* full */ }
     return hydrate(data);
   }
@@ -222,7 +265,7 @@
     const uid = state.user?.id;
     const shops = data.shops.filter(s => s.status === 'active' || s.owner_id === uid || state.admin).map(s => ({
       ...s, mine: s.owner_id === uid, open: s.status === 'active',
-      cover: imageUrl(s.cover_image_path), qr: imageUrl(s.payment_qr_path),
+      cover: imageUrl(s.cover_image_path), logo: imageUrl(s.logo_image_path), qr: imageUrl(s.payment_qr_path),
       products: (s.products || []).filter(p => p.active || s.owner_id === uid)
         .sort((a, b) => (a.sort_order - b.sort_order) || String(b.created_at).localeCompare(String(a.created_at)))
         .map(p => ({ ...p, price: Number(p.unit_price_rm), stock: Number(p.stock_qty), photo: imageUrl(p.image_path), shop: null }))
@@ -231,7 +274,7 @@
     const items = shops.flatMap(s => s.products);
     const m = {
       shops, items, picks: data.picks,
-      shop: id => shops.find(s => s.id === id), item: id => items.find(i => i.id === id),
+      shop: key => key ? shops.find(s => s.id === key || (s.slug && s.slug === String(key).toLowerCase())) : null, item: id => items.find(i => i.id === id),
       publicShops: shops.filter(s => s.open), publicItems: items.filter(i => i.shop.open && i.active),
       myShops: shops.filter(s => s.mine)
     };
@@ -289,15 +332,20 @@
           h('span', { class: 'item-foot' }, h('b', { class: 'price', text: money(i.price) }), stockNote(i)))),
       canAdd ? h('button', { class: 'add-btn', type: 'button', 'aria-label': `Add ${i.name} to bag`, onclick: e => { e.preventDefault(); bag.add(i); } }, icon('plus')) : null);
   }
+  // Shop profile picture: uploaded logo, else the chosen symbol on the shop colour
+  const shopLogo = (s, cls = 'shop-avatar') => h('span', { class: cls, style: { '--banner': s.theme || '#e5dfd1' }, 'aria-hidden': 'true' }, s.logo ? h('img', { src: s.logo, alt: '', loading: 'lazy' }) : (s.symbol || '✨'));
+  const shopUrl = s => `/s/${encodeURIComponent(s.slug || s.id)}`;
+  const shopLink = s => location.origin + shopUrl(s);
   function shopCard(s) {
     const m = market(s.market_id);
     const preview = s.products.filter(p => p.active).slice(0, 4);
-    return h('a', { class: 'shop-card', href: `/shop?id=${s.id}`, style: { '--market': m.color, '--banner': s.theme || '#e5dfd1' } },
+    return h('a', { class: 'shop-card', href: shopUrl(s), style: { '--market': m.color, '--banner': s.theme || '#e5dfd1' } },
       h('span', { class: 'shop-banner' },
         s.cover ? h('img', { src: s.cover, alt: '', loading: 'lazy' }) : [h('span', { class: 'banner-word', text: s.word || 'made with care' }), h('span', { class: 'banner-symbol', 'aria-hidden': 'true', text: s.symbol || '✨' })],
         h('span', { class: 'market-tag' }, h('i', { class: 'dot' }), m.short),
         !s.open ? h('span', { class: 'status-tag', text: (SHOP_STATUS[s.status] || [s.status])[0] }) : null),
       h('span', { class: 'shop-body' },
+        s.logo ? shopLogo(s) : null,
         h('strong', { class: 'shop-name', text: s.name }),
         h('span', { class: 'shop-meta', text: `${s.unit_department} · ${s.location}` }),
         preview.length ? h('span', { class: 'shop-preview' }, preview.map(p => itemArt(p, 'mini')), h('span', { class: 'shop-count', text: `${s.products.filter(p => p.active).length} item${s.products.filter(p => p.active).length === 1 ? '' : 's'}` }))
@@ -335,7 +383,7 @@
   const page = () => document.body.dataset.page || '';
   function navLinks() {
     const L = [['/', 'Home', 'home'], ['/market', 'Market', 'market']];
-    if (state.user) L.push(['/orders', 'My orders', 'orders'], ['/sell', state.seller ? 'Sell' : 'Start selling', 'sell']);
+    if (state.user) L.push(['/news', 'News', 'news'], ['/orders', 'My orders', 'orders'], ['/sell', state.seller ? 'Sell' : 'Start selling', 'sell']);
     if (state.admin) L.push(['/admin', 'Admin', 'admin']);
     return L.map(([href, label, key]) => h('a', { href, class: 'nav-link', 'aria-current': page() === key ? 'page' : null }, label));
   }
@@ -345,6 +393,7 @@
     const right = h('div', { class: 'header-actions' });
     if (state.user) {
       right.append(
+        h('a', { class: 'icon-btn news-btn', href: '/news', 'aria-label': 'News & events', title: 'News & events', 'aria-current': page() === 'news' ? 'page' : null }, icon('news')),
         h('a', { class: 'bag-btn', href: '/bag', 'aria-label': 'Your bag', 'aria-current': page() === 'bag' ? 'page' : null }, icon('bag'), h('span', { class: 'hide-sm', text: 'Bag' }), h('b', { class: 'bag-badge', hidden: true, text: '0' })),
         h('a', { class: 'avatar', href: '/account', 'aria-label': 'My account', title: displayName(), text: initials() }));
     } else {
@@ -409,6 +458,7 @@
       try {
         await initAuth();
         renderHeader();
+        if (state.user && !String(state.profile?.phone || '').trim() && !opts.noPhoneGate) { loading(false); await phoneGate(); loading(true); renderHeader(); }
         if (opts.auth && !state.user) { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
         if (opts.admin && !state.admin) { fill($('#main'), h('section', { class: 'wrap page-pad' }, empty('shield', 'Admins only', 'This account does not have admin access.', h('a', { class: 'btn btn-primary', href: '/' }, 'Back to home')))); return; }
         if (opts.market && state.user) await loadMarket(opts.fresh);
@@ -430,8 +480,8 @@
     $, $$, h, fill, icon, money, todayKL, when, dateOnly, shortId, badge, waNumber, waLink,
     toast, friendly, loading, run, check, modal, confirmBox,
     signImages, imageUrl, shrinkImage, uploadShopImage, loadMarket, clearMarketCache,
-    bag, updateBagBadges, itemArt, itemCard, shopCard, stockNote, empty, receiptBox,
-    displayName, renderHeader, reveal, start, signOut
+    bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, shopLogo, stockNote, empty, receiptBox,
+    displayName, renderHeader, reveal, start, signOut, realName
   };
   window.M = api;
 })();

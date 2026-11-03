@@ -50,18 +50,18 @@
   }
 
   function registerForm() {
-    const name = h('input', { id: 'name', autocomplete: 'name', maxlength: '100', required: true, placeholder: 'Your full name' });
+    const name = h('input', { id: 'name', autocomplete: 'name', maxlength: '100', required: true, placeholder: 'e.g. Nur Aisyah binti Ahmad' });
     const email = h('input', { id: 'remail', type: 'email', autocomplete: 'email', inputmode: 'email', required: true, placeholder: 'name@example.com' });
-    const phone = h('input', { id: 'phone', type: 'tel', autocomplete: 'tel', maxlength: '24', placeholder: '0123456789' });
+    const phone = h('input', { id: 'phone', type: 'tel', autocomplete: 'tel', inputmode: 'tel', maxlength: '24', placeholder: '0123456789', required: true });
     const p = pw('rpass', 'new-password', 'At least 8 characters');
     const sell = h('input', { type: 'checkbox' });
     const dept = h('input', { id: 'dept', maxlength: '120', placeholder: 'e.g. Unit Pemakanan, KK Presint 18' });
     const deptField = h('div', { class: 'field', hidden: true }, h('label', { for: 'dept', text: 'Your unit / department' }), dept);
     sell.addEventListener('change', () => { deptField.hidden = !sell.checked; });
     const form = h('form', { novalidate: true },
-      h('div', { class: 'field' }, h('label', { for: 'name', text: 'Full name' }), name),
+      h('div', { class: 'field' }, h('label', { for: 'name', text: 'Full name' }), name, h('small', { text: 'Recommended: your real name, so sellers and buyers know who they are dealing with.' })),
       h('div', { class: 'field' }, h('label', { for: 'remail', text: 'Email' }), email),
-      h('div', { class: 'field' }, h('label', { for: 'phone', text: 'Phone / WhatsApp (optional)' }), phone, h('small', { text: 'Sellers use this to contact you about orders.' })),
+      h('div', { class: 'field' }, h('label', { for: 'phone', text: 'Phone / WhatsApp' }), phone, h('small', { text: 'Required. Sellers and buyers use it to contact you about orders.' })),
       h('div', { class: 'field' }, h('label', { for: 'rpass', text: 'Password' }), p.el),
       h('label', { class: 'choice', style: { marginBottom: '14px' } }, sell, h('span', { class: 'tick' }, icon('check')),
         h('span', {}, h('strong', { text: 'I also want to sell' }), h('small', { text: 'Open a shop for your unit. You can also turn this on later.' }))),
@@ -71,9 +71,10 @@
     form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
       if (name.value.trim().length < 2) throw new Error('Enter your full name.');
       if (!email.value.includes('@')) throw new Error('Enter a valid email address.');
-      if (phone.value.trim() && !M.PHONE.test(phone.value.trim())) throw new Error('Enter a valid phone number, or leave it empty.');
+      if (!M.PHONE.test(phone.value.trim()) || !M.waNumber(phone.value.trim())) { phone.focus(); throw new Error('Enter your phone number, e.g. 0123456789.'); }
       if (!pwOk(p.input.value)) throw new Error('Password needs at least 8 characters.');
       if (sell.checked && dept.value.trim().length < 2) throw new Error('Enter your unit or department.');
+      if (!M.realName(name.value) && !(await M.confirmBox('Use this name?', `"${name.value.trim()}" looks like a nickname. We recommend your real full name so people can trust your orders.`, 'Keep it'))) return;
       const res = check(await M.db.auth.signUp({ email: email.value.trim(), password: p.input.value, options: {
         emailRedirectTo: location.origin + '/account',
         data: { full_name: name.value.trim(), phone: phone.value.trim(), account_type: sell.checked ? 'seller' : 'buyer', department: dept.value.trim() } } }));
@@ -99,16 +100,16 @@
   function profile(s) {
     const p = s.profile || {};
     const name = h('input', { maxlength: '100', value: p.full_name || '', required: true });
-    const phone = h('input', { type: 'tel', maxlength: '24', value: p.phone || '', placeholder: '0123456789' });
+    const phone = h('input', { type: 'tel', maxlength: '24', value: p.phone || '', placeholder: '0123456789', required: true });
     const dept = h('input', { maxlength: '120', value: p.department || '', placeholder: 'Your unit / department' });
     const form = h('form', { class: 'card' }, h('h2', { text: 'My details' }), h('p', { class: 'muted small', text: s.user.email }),
-      h('div', { class: 'field' }, h('label', { text: 'Full name' }), name),
-      h('div', { class: 'field' }, h('label', { text: 'Phone / WhatsApp' }), phone, h('small', { text: 'Filled in for you at checkout.' })),
+      h('div', { class: 'field' }, h('label', { text: 'Full name' }), name, h('small', { text: 'Recommended: your real name.' })),
+      h('div', { class: 'field' }, h('label', { text: 'Phone / WhatsApp (required)' }), phone, h('small', { text: 'Filled in for you at checkout and shown to sellers you order from.' })),
       h('div', { class: 'field' }, h('label', { text: 'Unit / department' }), dept),
       h('button', { class: 'btn btn-primary', type: 'submit' }, 'Save details'));
     form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
       if (name.value.trim().length < 2) throw new Error('Enter your full name.');
-      if (phone.value.trim() && !M.PHONE.test(phone.value.trim())) throw new Error('Enter a valid phone number.');
+      if (!M.PHONE.test(phone.value.trim()) || !M.waNumber(phone.value.trim())) { phone.focus(); throw new Error('Phone number is required, e.g. 0123456789.'); }
       const upd = { full_name: name.value.trim(), phone: phone.value.trim(), department: dept.value.trim() };
       check(await M.db.from('profiles').update(upd).eq('id', s.user.id));
       s.profile = { ...p, ...upd }; M.renderHeader(); toast('Details saved.');
@@ -120,7 +121,7 @@
       if (!pwOk(npw.input.value)) throw new Error('Password needs at least 8 characters.');
       check(await M.db.auth.updateUser({ password: npw.input.value })); pwForm.reset(); toast('Password updated.');
     }, pwForm); });
-    const links = [['/orders', 'receipt', 'My orders', 'Track orders and payments'], ['/sell', 'sell', s.seller ? 'My shop' : 'Start selling', s.seller ? 'Items, stock, orders and sales' : 'Open a shop for your unit'], ['/bag', 'bag', 'My bag', 'Items waiting for checkout']];
+    const links = [['/orders', 'receipt', 'My orders', 'Track orders and payments'], ['/sell', 'sell', s.seller ? 'My shop' : 'Start selling', s.seller ? 'Items, stock, orders and sales' : 'Open a shop for your unit'], ['/bag', 'bag', 'My bag', 'Items waiting for checkout'], ['/news', 'news', 'News & events', 'PKD news, events and global news — write your own']];
     if (s.admin) links.push(['/admin', 'shield', 'Admin control room', 'Approve shops, picks, orders, members']);
     fill($('#account-root'), h('section', { class: 'wrap page-pad', style: { maxWidth: '900px' } },
       h('div', { class: 'reveal' }, h('span', { class: 'eyebrow', text: 'My account' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Hi, ', h('em', { text: (p.full_name || 'there').split(' ')[0] }))),

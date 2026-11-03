@@ -17,13 +17,17 @@
     const sec = section();
     const pending = s.market.shops.filter(x => x.status === 'pending').length;
     const body = h('div', {});
+    const newsLink = h('a', { href: '/news#review' }, icon('news'), 'News approvals');
+    M.db.from('news_posts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+      .then(r => { if (r.count) newsLink.append(h('span', { class: 'count', text: String(r.count) })); }, () => {});
     fill(root, h('section', { class: 'wrap page-pad' },
       h('div', {}, h('span', { class: 'eyebrow', text: 'Market admin' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Control ', h('em', { text: 'room' }))),
       h('nav', { class: 'sub-nav', 'aria-label': 'Admin sections' },
         h('a', { href: '#overview', 'aria-current': sec === 'overview' ? 'page' : null }, icon('chart'), 'Overview'),
         h('a', { href: '#shops', 'aria-current': sec === 'shops' ? 'page' : null }, icon('store'), 'Shops', pending ? h('span', { class: 'count', text: String(pending) }) : null),
         h('a', { href: '#orders', 'aria-current': sec === 'orders' ? 'page' : null }, icon('receipt'), 'Orders'),
-        h('a', { href: '#members', 'aria-current': sec === 'members' ? 'page' : null }, icon('users'), 'Members')),
+        h('a', { href: '#members', 'aria-current': sec === 'members' ? 'page' : null }, icon('users'), 'Members'),
+        newsLink),
       body));
     await ({ overview, shops, orders, members })[sec](body);
   }
@@ -75,7 +79,7 @@
         x.status !== 'active' ? h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => set('active', 'Shop approved — it is now visible to everyone.') }, icon('check'), x.status === 'pending' ? 'Approve' : 'Reactivate') : null,
         x.status === 'pending' ? h('button', { class: 'btn btn-danger btn-sm', type: 'button', onclick: async () => { if (await confirmBox('Decline this shop?', 'The seller will see it as declined. You can reactivate it later.', 'Decline', true)) set('suspended', 'Shop declined.'); } }, 'Decline') : null,
         x.status === 'active' ? h('button', { class: 'btn btn-danger btn-sm', type: 'button', onclick: async () => { if (await confirmBox('Suspend this shop?', 'Buyers will no longer see it or be able to order.', 'Suspend', true)) set('suspended', 'Shop suspended.'); } }, 'Suspend') : null,
-        h('a', { class: 'btn btn-ghost btn-sm', href: `/shop?id=${x.id}` }, 'View shop')));
+        h('a', { class: 'btn btn-ghost btn-sm', href: M.shopUrl(x) }, 'View shop')));
   }
 
   // ---------------- shops ----------------
