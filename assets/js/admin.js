@@ -17,13 +17,17 @@
     const sec = section();
     const pending = s.market.shops.filter(x => x.status === 'pending').length;
     const body = h('div', {});
+    const newsLink = h('a', { href: '/news#review' }, icon('news'), 'News approvals');
+    M.db.from('news_posts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+      .then(r => { if (r.count) newsLink.append(h('span', { class: 'count', text: String(r.count) })); }, () => {});
     fill(root, h('section', { class: 'wrap page-pad' },
       h('div', {}, h('span', { class: 'eyebrow', text: 'Market admin' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Control ', h('em', { text: 'room' }))),
       h('nav', { class: 'sub-nav', 'aria-label': 'Admin sections' },
         h('a', { href: '#overview', 'aria-current': sec === 'overview' ? 'page' : null }, icon('chart'), 'Overview'),
         h('a', { href: '#shops', 'aria-current': sec === 'shops' ? 'page' : null }, icon('store'), 'Shops', pending ? h('span', { class: 'count', text: String(pending) }) : null),
         h('a', { href: '#orders', 'aria-current': sec === 'orders' ? 'page' : null }, icon('receipt'), 'Orders'),
-        h('a', { href: '#members', 'aria-current': sec === 'members' ? 'page' : null }, icon('users'), 'Members')),
+        h('a', { href: '#members', 'aria-current': sec === 'members' ? 'page' : null }, icon('users'), 'Members'),
+        newsLink),
       body));
     await ({ overview, shops, orders, members })[sec](body);
   }

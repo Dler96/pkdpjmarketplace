@@ -79,6 +79,7 @@
     qr: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path d="M14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     snow: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9.5 3.5L12 6l2.5-2.5M9.5 20.5L12 18l2.5 2.5"/>',
+    news: '<path d="M4 5h13v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M7 9h7M7 13h7M7 17h4"/>',
     sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
   };
   function icon(name, cls = '') {
@@ -382,7 +383,7 @@
   const page = () => document.body.dataset.page || '';
   function navLinks() {
     const L = [['/', 'Home', 'home'], ['/market', 'Market', 'market']];
-    if (state.user) L.push(['/orders', 'My orders', 'orders'], ['/sell', state.seller ? 'Sell' : 'Start selling', 'sell']);
+    if (state.user) L.push(['/news', 'News', 'news'], ['/orders', 'My orders', 'orders'], ['/sell', state.seller ? 'Sell' : 'Start selling', 'sell']);
     if (state.admin) L.push(['/admin', 'Admin', 'admin']);
     return L.map(([href, label, key]) => h('a', { href, class: 'nav-link', 'aria-current': page() === key ? 'page' : null }, label));
   }
@@ -392,6 +393,7 @@
     const right = h('div', { class: 'header-actions' });
     if (state.user) {
       right.append(
+        h('a', { class: 'icon-btn news-btn', href: '/news', 'aria-label': 'News & events', title: 'News & events', 'aria-current': page() === 'news' ? 'page' : null }, icon('news')),
         h('a', { class: 'bag-btn', href: '/bag', 'aria-label': 'Your bag', 'aria-current': page() === 'bag' ? 'page' : null }, icon('bag'), h('span', { class: 'hide-sm', text: 'Bag' }), h('b', { class: 'bag-badge', hidden: true, text: '0' })),
         h('a', { class: 'avatar', href: '/account', 'aria-label': 'My account', title: displayName(), text: initials() }));
     } else {
