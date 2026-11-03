@@ -178,7 +178,7 @@
         h('div', { class: 'field' }, h('label', { text: 'Phone / WhatsApp (required)' }), phone),
         h('button', { class: 'btn btn-primary btn-lg btn-block', type: 'submit' }, 'Save and continue'),
         h('p', { style: { textAlign: 'center', marginTop: '14px' } }, h('button', { class: 'link-btn', type: 'button', onclick: () => signOut() }, 'Log out instead')));
-      const dlg = modal('Add your phone number', form, { eyebrow: 'One quick step' });
+      const dlg = modal('Add your phone number', form, { eyebrow: 'One quick step' }).dialog;
       dlg.querySelector('.modal-head .icon-btn')?.remove();
       dlg.addEventListener('cancel', e => e.preventDefault());           // Esc cannot skip it
       const realClose = dlg.close.bind(dlg); dlg.close = () => {};      // backdrop tap cannot skip it either
