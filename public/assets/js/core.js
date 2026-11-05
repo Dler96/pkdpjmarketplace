@@ -68,6 +68,7 @@
     truck: '<path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/>',
     hand: '<path d="M7 11V6a1.5 1.5 0 0 1 3 0v4M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V12M16 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4.5a1.5 1.5 0 0 1 2.6-1.5L7 13"/>',
     star: '<path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3L12 17.5 6.5 20.4l1-6.3L3 9.7l6.2-.9z"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
     edit: '<path d="M4 20h4L20 8l-4-4L4 16z"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
@@ -162,7 +163,11 @@
     if (!state.user) return;
     const p = await db.from('profiles').select('*').eq('id', state.user.id).maybeSingle();
     state.profile = p.data || { full_name: state.user.user_metadata?.full_name || '', account_type: 'buyer', is_admin: false, department: '', phone: '' };
-    state.admin = !!state.profile.is_admin;
+    // Roles: Admin (full control) > Manager (everything except deleting others' things and roles) > Member
+    state.superAdmin = !!state.profile.is_admin;
+    state.manager = !state.superAdmin && !!state.profile.is_manager;
+    state.admin = state.superAdmin || state.manager;   // "staff": can open the control room
+    state.role = state.superAdmin ? 'admin' : state.manager ? 'manager' : 'member';
     state.seller = state.profile.account_type === 'seller';
   }
   // Phone number is mandatory for every buyer and seller. Accounts without one are asked once, before anything else.
@@ -398,7 +403,7 @@
   function navLinks() {
     const L = [['/', 'Home', 'home'], ['/market', 'Market', 'market']];
     if (state.user) L.push(['/news', 'News', 'news'], ['/orders', 'My orders', 'orders'], ['/sell', state.seller ? 'Sell' : 'Start selling', 'sell']);
-    if (state.admin) L.push(['/admin', 'Admin', 'admin']);
+    if (state.admin) L.push(['/admin', state.manager ? 'Manage' : 'Admin', 'admin']);
     return L.map(([href, label, key]) => h('a', { href, class: 'nav-link', 'aria-current': page() === key ? 'page' : null }, label));
   }
   function renderHeader() {
@@ -474,6 +479,9 @@
         renderHeader();
         if (state.user && !String(state.profile?.phone || '').trim() && !opts.noPhoneGate) { loading(false); await phoneGate(); loading(true); renderHeader(); }
         if (opts.auth && !state.user) { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
+        const site = await siteSettings();
+        if (site?.maintenance && !state.admin && page() !== 'account') { fill($('#main'), maintenancePage(site)); loading(false); return; }
+        if (site?.announcement) announce(site.announcement, site.maintenance && state.admin);
         if (opts.admin && !state.admin) { fill($('#main'), h('section', { class: 'wrap page-pad' }, empty('shield', 'Admins only', 'This account does not have admin access.', h('a', { class: 'btn btn-primary', href: '/' }, 'Back to home')))); return; }
         if (opts.market) await loadMarket(opts.fresh);
         if (!state.user && state.guestLocked && opts.market && page() !== 'home') { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
@@ -485,6 +493,57 @@
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   }
+  // ---------- site settings: maintenance mode + announcement banner ----------
+  async function siteSettings() {
+    try {
+      const c = JSON.parse(sessionStorage.getItem('pkdpj-site') || 'null');
+      if (c && Date.now() - c.at < 60000) return c.v;
+    } catch { /* ignore */ }
+    const r = await db.from('site_settings').select('maintenance,maintenance_message,announcement').eq('id', 1).maybeSingle();
+    if (r.error) return null;   // 10-manager-role.sql not run yet
+    try { sessionStorage.setItem('pkdpj-site', JSON.stringify({ at: Date.now(), v: r.data })); } catch { /* ignore */ }
+    return r.data;
+  }
+  function maintenancePage(site) {
+    return h('section', { class: 'wrap page-pad maint' },
+      h('div', { class: 'maint-card reveal' },
+        h('span', { class: 'maint-ico' }, icon('settings')),
+        h('span', { class: 'eyebrow', text: 'Back soon' }),
+        h('h1', {}, 'We are giving the market a ', h('em', { text: 'little polish' })),
+        h('p', { class: 'muted pre', text: site.maintenance_message }),
+        state.user ? h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => location.reload() }, icon('refresh'), 'Try again')
+          : h('a', { class: 'btn btn-ghost', href: '/account' }, 'Staff log in')));
+  }
+  function announce(text, maintenanceOn) {
+    let hidden = false;
+    try { hidden = sessionStorage.getItem('pkdpj-ann') === text; } catch { /* ignore */ }
+    if (hidden && !maintenanceOn) return;
+    const bar = h('div', { class: 'announce' + (maintenanceOn ? ' warn' : ''), role: 'status' },
+      h('div', { class: 'wrap' }, icon(maintenanceOn ? 'settings' : 'news'),
+        h('span', { text: maintenanceOn ? 'Maintenance mode is ON — only staff can see the site. ' + text : text }),
+        maintenanceOn ? null : h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Hide', onclick: () => { try { sessionStorage.setItem('pkdpj-ann', text); } catch { /* ignore */ } bar.remove(); } }, icon('x'))));
+    $('#main').prepend(bar);
+  }
+
+  // Deleting something you don't own: Admins delete, Managers send a request to an Admin.
+  async function removeOrRequest({ type, id, label, owner, doDelete }) {
+    if (owner || state.superAdmin) return doDelete();
+    if (!state.manager) throw new Error('You do not have permission to do that.');
+    const reason = h('textarea', { rows: '3', maxlength: '500', placeholder: 'e.g. Duplicate shop, inappropriate item, outdated news…' });
+    const form = h('form', {},
+      h('p', { class: 'muted', text: `As a Manager you can't delete "${label}" yourself. An Admin will review your request.` }),
+      h('div', { class: 'field' }, h('label', { text: 'Reason' }), reason),
+      h('div', { class: 'row-end' }, h('button', { class: 'btn btn-danger', type: 'submit' }, icon('trash'), 'Send delete request')));
+    return new Promise(resolve => {
+      const m = modal('Ask an Admin to delete?', form, { eyebrow: 'Manager' });
+      form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+        if (reason.value.trim().length < 3) { reason.focus(); throw new Error('Please give a short reason.'); }
+        check(await db.rpc('request_marketplace_delete', { p_type: type, p_id: id, p_reason: reason.value.trim() }));
+        m.close(); toast('Delete request sent to the Admin.'); resolve('requested');
+      }, form); });
+    });
+  }
+
   async function signOut() {
     api.signingOut = true; clearMarketCache();
     await db.auth.signOut(); location.href = '/';
@@ -496,7 +555,7 @@
     toast, friendly, loading, run, check, modal, confirmBox,
     signImages, imageUrl, shrinkImage, uploadShopImage, loadMarket, clearMarketCache,
     bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, shopLogo, stockNote, empty, receiptBox,
-    displayName, renderHeader, reveal, start, signOut, realName, askToJoin
+    displayName, renderHeader, reveal, start, signOut, realName, askToJoin, removeOrRequest
   };
   window.M = api;
 })();

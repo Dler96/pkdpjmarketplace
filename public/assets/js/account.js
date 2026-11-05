@@ -122,7 +122,7 @@
       check(await M.db.auth.updateUser({ password: npw.input.value })); pwForm.reset(); toast('Password updated.');
     }, pwForm); });
     const links = [['/orders', 'receipt', 'My orders', 'Track orders and payments'], ['/sell', 'sell', s.seller ? 'My shop' : 'Start selling', s.seller ? 'Items, stock, orders and sales' : 'Open a shop for your unit'], ['/bag', 'bag', 'My bag', 'Items waiting for checkout'], ['/news', 'news', 'News & events', 'PKD news, events and global news — write your own']];
-    if (s.admin) links.push(['/admin', 'shield', 'Admin control room', 'Approve shops, picks, orders, members']);
+    if (s.admin) links.push(['/admin', 'shield', s.manager ? 'Manager control room' : 'Admin control room', s.manager ? 'Approve shops and news, picks, orders, maintenance' : 'Approvals, picks, orders, roles, delete requests, maintenance']);
     fill($('#account-root'), h('section', { class: 'wrap page-pad', style: { maxWidth: '900px' } },
       h('div', { class: 'reveal' }, h('span', { class: 'eyebrow', text: 'My account' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Hi, ', h('em', { text: (p.full_name || 'there').split(' ')[0] }))),
       h('div', { class: 'card', style: { padding: 0, overflow: 'hidden', marginBottom: '16px' } }, links.map(([href, ic, t, d]) =>

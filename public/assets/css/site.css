@@ -710,3 +710,22 @@ h1 em, h2 em { background: linear-gradient(90deg, var(--green), #4f9a78, var(--a
   .hl-emoji { font-size: 160px; right: 60px; top: 30px; }
   .event-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* roles, maintenance, announcement */
+.role-select { height: 36px; padding: 0 30px 0 12px; border-radius: 10px; font: 700 13px var(--body); width: auto; min-width: 110px; }
+.switch-row { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); cursor: pointer; }
+.switch-row input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--red); flex-shrink: 0; }
+.switch-row small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.announce { background: var(--green); color: #fff; font-size: 14px; font-weight: 600; animation: fadeDown .5s ease both; }
+.announce.warn { background: #8a5a12; }
+.announce .wrap { display: flex; align-items: center; gap: 10px; padding-top: 10px; padding-bottom: 10px; }
+.announce .wrap > span { flex: 1; }
+.announce .ico { width: 18px; height: 18px; flex-shrink: 0; }
+.announce .icon-btn { width: 32px; height: 32px; background: #ffffff22; border-color: #ffffff33; color: #fff; }
+@keyframes fadeDown { from { opacity: 0; transform: translateY(-8px); } }
+.maint { display: grid; place-items: center; min-height: 60vh; }
+.maint-card { max-width: 520px; text-align: center; padding: 34px 24px; border-radius: 28px; background: #fffdf8ee; border: 1px solid var(--line); box-shadow: var(--shadow); }
+.maint-card h1 { font-size: clamp(28px, 7vw, 40px); margin: 6px 0 10px; }
+.maint-ico { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 22px; background: var(--green-soft); color: var(--green); margin-bottom: 12px; }
+.maint-ico .ico { width: 36px; height: 36px; animation: spinSlow 6s linear infinite; }
+.req-info small { display: block; margin-top: 2px; }

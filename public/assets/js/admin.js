@@ -1,4 +1,4 @@
-/* Admin: approvals, today's picks, all orders, members. */
+/* Admin & Manager: approvals, today's picks, all orders, members, delete requests, maintenance. */
 (() => {
   'use strict';
   const M = window.M;
@@ -12,24 +12,29 @@
     await route();
   }, { auth: true, admin: true, market: true, fresh: true });
 
-  const section = () => ['overview', 'shops', 'orders', 'members'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+  const section = () => ['overview', 'shops', 'orders', 'members', 'requests', 'site'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
   async function route() {
     const sec = section();
     const pending = s.market.shops.filter(x => x.status === 'pending').length;
     const body = h('div', {});
     const newsLink = h('a', { href: '/news#review' }, icon('news'), 'News approvals');
+    const reqLink = h('a', { href: '#requests', 'aria-current': sec === 'requests' ? 'page' : null }, icon('trash'), 'Delete requests');
+    M.db.from('delete_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+      .then(r => { if (r.count) reqLink.append(h('span', { class: 'count', text: String(r.count) })); }, () => {});
     M.db.from('news_posts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
       .then(r => { if (r.count) newsLink.append(h('span', { class: 'count', text: String(r.count) })); }, () => {});
     fill(root, h('section', { class: 'wrap page-pad' },
-      h('div', {}, h('span', { class: 'eyebrow', text: 'Market admin' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Control ', h('em', { text: 'room' }))),
+      h('div', {}, h('span', { class: 'eyebrow', text: s.superAdmin ? 'Market admin' : 'Market manager' }), h('h1', { style: { fontSize: 'clamp(28px,7vw,44px)' } }, 'Control ', h('em', { text: 'room' }))),
       h('nav', { class: 'sub-nav', 'aria-label': 'Admin sections' },
         h('a', { href: '#overview', 'aria-current': sec === 'overview' ? 'page' : null }, icon('chart'), 'Overview'),
         h('a', { href: '#shops', 'aria-current': sec === 'shops' ? 'page' : null }, icon('store'), 'Shops', pending ? h('span', { class: 'count', text: String(pending) }) : null),
         h('a', { href: '#orders', 'aria-current': sec === 'orders' ? 'page' : null }, icon('receipt'), 'Orders'),
         h('a', { href: '#members', 'aria-current': sec === 'members' ? 'page' : null }, icon('users'), 'Members'),
-        newsLink),
+        newsLink, reqLink,
+        h('a', { href: '#site', 'aria-current': sec === 'site' ? 'page' : null }, icon('settings'), 'Maintenance')),
       body));
-    await ({ overview, shops, orders, members })[sec](body);
+    try { await ({ overview, shops, orders, members, requests, site })[sec](body); }
+    catch (e) { if (/delete_requests|site_settings|is_manager/.test(String(e?.message))) fill(body, M.empty('shield', 'Almost ready', 'Run 10-manager-role.sql in the Supabase SQL Editor to switch this on.')); else throw e; }
   }
   async function refresh() { M.clearMarketCache(); s.market = await M.loadMarket(true); await route(); }
 
@@ -143,25 +148,101 @@
 
   // ---------------- members ----------------
   async function members(body) {
-    const rows = check(await M.db.from('profiles').select('id,full_name,account_type,department,phone,is_admin,created_at').order('created_at', { ascending: false }).limit(2000));
+    const rows = check(await M.db.from('profiles').select('id,full_name,account_type,department,phone,is_admin,is_manager,created_at').order('created_at', { ascending: false }).limit(2000));
     let q = '';
     const tbody = h('div', {});
     const draw = () => fill(tbody, rows.filter(p => `${p.full_name} ${p.department} ${p.phone}`.toLowerCase().includes(q.toLowerCase())).slice(0, 200).map(p =>
       h('div', { class: 'list-row', style: { gridTemplateColumns: '44px 1fr auto' } },
-        h('span', { class: 'avatar', style: { width: '40px', height: '40px', fontSize: '13px', background: p.is_admin ? 'var(--green)' : 'var(--ink)' }, text: (p.full_name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }),
-        h('div', {}, h('strong', { text: p.full_name || 'No name' }), h('small', { text: [p.account_type === 'seller' ? 'Seller' : 'Buyer', p.is_admin ? 'Admin' : null, p.department, p.phone].filter(Boolean).join(' · ') })),
-        p.id === s.user.id ? h('span', { class: 'badge badge-green', text: 'You' }) : h('button', { class: 'btn btn-ghost btn-xs', type: 'button', onclick: async () => {
-          if (!(await confirmBox(p.is_admin ? 'Remove admin access?' : 'Make admin?', p.is_admin ? `${p.full_name} will no longer be able to approve shops or see all orders.` : `${p.full_name} will be able to approve shops, see every order and manage members. Only give this to people you trust.`, p.is_admin ? 'Remove admin' : 'Make admin', !p.is_admin))) return;
-          run(async () => { check(await M.db.rpc('admin_set_marketplace_admin', { p_user: p.id, p_admin: !p.is_admin })); p.is_admin = !p.is_admin; draw(); toast('Updated.'); });
-        } }, p.is_admin ? 'Remove admin' : 'Make admin'))));
+        h('span', { class: 'avatar', style: { width: '40px', height: '40px', fontSize: '13px', background: p.is_admin ? 'var(--green)' : p.is_manager ? 'var(--amber)' : 'var(--ink)' }, text: (p.full_name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }),
+        h('div', {}, h('strong', { text: p.full_name || 'No name' }), h('small', { text: [p.account_type === 'seller' ? 'Seller' : 'Buyer', p.is_admin ? 'Admin' : p.is_manager ? 'Manager' : null, p.department, p.phone].filter(Boolean).join(' · ') })),
+        p.id === s.user.id ? h('span', { class: 'badge badge-green', text: 'You' })
+          : s.superAdmin ? roleSelect(p, draw)
+          : h('span', { class: 'badge', text: p.is_admin ? 'Admin' : p.is_manager ? 'Manager' : 'Member' }))));
     fill(body,
       h('div', { class: 'stats' },
         h('div', { class: 'stat' }, h('small', { text: 'Members' }), h('strong', { text: String(rows.length) })),
         h('div', { class: 'stat' }, h('small', { text: 'Sellers' }), h('strong', { text: String(rows.filter(p => p.account_type === 'seller').length) })),
-        h('div', { class: 'stat' }, h('small', { text: 'Admins' }), h('strong', { text: String(rows.filter(p => p.is_admin).length) })),
+        h('div', { class: 'stat' }, h('small', { text: 'Admins / managers' }), h('strong', { text: `${rows.filter(p => p.is_admin).length} / ${rows.filter(p => p.is_manager && !p.is_admin).length}` })),
         h('div', { class: 'stat' }, h('small', { text: 'Joined this month' }), h('strong', { text: String(rows.filter(p => String(p.created_at).slice(0, 7) === M.todayKL().slice(0, 7)).length) }))),
       h('label', { class: 'searchbar', style: { marginBottom: '14px' } }, icon('search'), h('input', { type: 'search', placeholder: 'Search name, unit or phone', oninput: e => { q = e.target.value; draw(); } })),
       h('div', { class: 'card', style: { padding: 0, overflow: 'hidden' } }, tbody));
     draw();
+  }
+
+  const ROLE_TEXT = {
+    member: 'A normal account: can buy, sell (own shop) and post news for approval.',
+    manager: 'Can approve, pause or reject shops, edit any shop or item, approve and highlight news, manage Today\'s picks and orders, and turn on maintenance mode. Deleting other people\'s things needs your approval.',
+    admin: 'Full control, including deleting anything, approving delete requests and changing roles. Only give this to people you fully trust.'
+  };
+  function roleSelect(p, redraw) {
+    const cur = p.is_admin ? 'admin' : p.is_manager ? 'manager' : 'member';
+    const sel = h('select', { class: 'role-select', 'aria-label': `Role for ${p.full_name}` },
+      [['member', 'Member'], ['manager', 'Manager'], ['admin', 'Admin']].map(([v, l]) => h('option', { value: v, text: l, selected: v === cur })));
+    sel.addEventListener('change', async () => {
+      const role = sel.value;
+      if (!(await confirmBox(`Make ${p.full_name || 'this member'} a ${role}?`, ROLE_TEXT[role], 'Change role', role === 'admin'))) { sel.value = cur; return; }
+      run(async () => {
+        check(await M.db.rpc('admin_set_marketplace_role', { p_user: p.id, p_role: role }));
+        p.is_admin = role === 'admin'; p.is_manager = role === 'manager'; redraw(); toast('Role updated.');
+      });
+    });
+    return sel;
+  }
+
+  // ---------------- delete requests ----------------
+  async function requests(body) {
+    const rows = check(await M.db.from('delete_requests').select('*').order('created_at', { ascending: false }).limit(200));
+    const pending = rows.filter(r => r.status === 'pending'), done = rows.filter(r => r.status !== 'pending').slice(0, 30);
+    const TYPE = { shop: ['Shop', 'store'], product: ['Item', 'box'], news: ['News post', 'news'] };
+    const row = r => h('div', { class: 'list-row', style: { gridTemplateColumns: '44px 1fr auto' } },
+      h('span', { class: 'empty-ico', style: { width: '40px', height: '40px', margin: 0 } }, icon(TYPE[r.target_type][1])),
+      h('div', { class: 'req-info' }, h('strong', { text: r.target_label }),
+        h('small', { text: `${TYPE[r.target_type][0]} · asked by ${r.requested_by_name} · ${M.dateOnly(r.created_at)}` }),
+        r.reason ? h('small', { style: { color: 'var(--ink)' }, text: 'Reason: ' + r.reason }) : null,
+        r.status !== 'pending' ? h('small', { text: (r.status === 'approved' ? 'Deleted' : 'Declined') + (r.decision_note ? ' — ' + r.decision_note : '') }) : null),
+      r.status !== 'pending' ? h('span', { class: 'badge ' + (r.status === 'approved' ? 'badge-red' : ''), text: r.status === 'approved' ? 'Deleted' : 'Declined' })
+        : s.superAdmin ? h('div', { class: 'row-tools' },
+            h('button', { class: 'btn btn-ghost btn-xs', type: 'button', onclick: () => decide(r, false) }, 'Decline'),
+            h('button', { class: 'btn btn-danger btn-xs', type: 'button', onclick: () => decide(r, true) }, icon('trash'), 'Delete'))
+          : h('span', { class: 'badge badge-amber', text: 'Waiting for Admin' }));
+    fill(body,
+      h('div', { class: 'notice notice-info', text: s.superAdmin ? 'Managers cannot delete other people\'s shops, items or news. They send a request here, and nothing is removed until you approve it.' : 'Deleting other people\'s shops, items or news needs an Admin\'s approval. Your requests are listed here.' }),
+      h('h2', { style: { fontSize: '22px' } }, 'Waiting ', h('em', { text: `(${pending.length})` })),
+      pending.length ? h('div', { class: 'card', style: { padding: 0, overflow: 'hidden' } }, pending.map(row)) : M.empty('check', 'No delete requests', 'Nothing is waiting for a decision.'),
+      done.length ? [h('h2', { style: { fontSize: '22px', marginTop: '26px' } }, 'Recently ', h('em', { text: 'decided' })), h('div', { class: 'card', style: { padding: 0, overflow: 'hidden' } }, done.map(row))] : null);
+  }
+  async function decide(r, approve) {
+    const note = h('input', { maxlength: '200', placeholder: approve ? 'Optional note' : 'Why not? (optional)' });
+    const form = h('form', {}, h('p', { class: 'muted', text: approve ? `"${r.target_label}" will be permanently deleted. This cannot be undone.` : `"${r.target_label}" will stay.` }),
+      h('div', { class: 'field' }, h('label', { text: 'Note to the manager' }), note),
+      h('div', { class: 'row-end' }, h('button', { class: approve ? 'btn btn-danger' : 'btn btn-primary', type: 'submit' }, approve ? 'Delete permanently' : 'Decline request')));
+    const m = modal(approve ? 'Approve deletion?' : 'Decline deletion?', form, { eyebrow: 'Delete request' });
+    form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+      check(await M.db.rpc('decide_marketplace_delete', { p_request: r.id, p_approve: approve, p_note: note.value.trim() || null }));
+      m.close(); toast(approve ? 'Deleted.' : 'Request declined.'); M.clearMarketCache(); await route();
+    }, form); });
+  }
+
+  // ---------------- maintenance & announcement ----------------
+  async function site(body) {
+    const cfg = check(await M.db.from('site_settings').select('*').eq('id', 1).maybeSingle()) || {};
+    const on = h('input', { type: 'checkbox', checked: !!cfg.maintenance });
+    const msg = h('textarea', { rows: '3', maxlength: '300' }); msg.value = cfg.maintenance_message || '';
+    const ann = h('textarea', { rows: '2', maxlength: '240', placeholder: 'e.g. Orders close at 3pm today for the staff meeting.' }); ann.value = cfg.announcement || '';
+    const form = h('form', { class: 'card' },
+      h('h2', { style: { fontSize: '22px', marginTop: 0 } }, 'Maintenance ', h('em', { text: 'mode' })),
+      h('label', { class: 'switch-row' }, on, h('span', {}, h('strong', { text: 'Close the market for maintenance' }), h('small', { text: 'Everyone except Admins and Managers sees the message below. You can keep working as normal.' }))),
+      h('div', { class: 'field', style: { marginTop: '12px' } }, h('label', { text: 'Message visitors see' }), msg),
+      h('h2', { style: { fontSize: '22px', marginTop: '22px' } }, 'Announcement ', h('em', { text: 'banner' })),
+      h('div', { class: 'field' }, h('label', { text: 'Shown at the top of every page (leave empty to hide)' }), ann),
+      cfg.updated_at ? h('p', { class: 'small muted', text: `Last changed ${M.dateOnly(cfg.updated_at)}` }) : null,
+      h('div', { class: 'row-end' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Save')));
+    form.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+      if (on.checked && !cfg.maintenance && !(await confirmBox('Close the market?', 'Members and visitors will not be able to use the site until you switch this off.', 'Close for maintenance', true))) return;
+      check(await M.db.from('site_settings').update({ maintenance: on.checked, maintenance_message: msg.value.trim() || 'We are doing some quick maintenance. Please check back soon.', announcement: ann.value.trim() }).eq('id', 1));
+      try { sessionStorage.removeItem('pkdpj-site'); } catch { /* ignore */ }
+      toast(on.checked ? 'Market closed for maintenance.' : 'Saved.'); await route();
+    }, form); });
+    fill(body, cfg.maintenance ? h('div', { class: 'notice notice-warn', text: 'Maintenance mode is ON. Only Admins and Managers can use the site right now.' }) : null, form);
   }
 })();

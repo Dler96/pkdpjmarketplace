@@ -195,6 +195,11 @@
   }
 
   async function deleteShop(shop, mdl) {
+    if (!shop.mine && M.state.manager) {
+      const r = await M.removeOrRequest({ type: 'shop', id: shop.id, label: shop.name, owner: false });
+      if (r === 'requested') mdl.close();
+      return;
+    }
     if (!(await confirmBox('Delete this shop?', `“${shop.name}” and all its items will be removed. This cannot be undone. Shops with past orders cannot be deleted — pause them instead.`, 'Delete shop', true))) return;
     await run(async () => {
       const r = await M.db.from('shops').delete().eq('id', shop.id);
@@ -270,6 +275,11 @@
   }
 
   async function deleteItem(item, mdl) {
+    if (!item.shop?.mine && M.state.manager) {
+      const r = await M.removeOrRequest({ type: 'product', id: item.id, label: item.name, owner: false });
+      if (r === 'requested') mdl.close();
+      return;
+    }
     if (!(await confirmBox('Delete this item?', `“${item.name}” will be removed. Past orders keep their record. To hide it for now, untick “Show this item to buyers” instead.`, 'Delete', true))) return;
     await run(async () => { check(await M.db.from('products').delete().eq('id', item.id)); mdl.close(); toast('Item deleted.'); await refresh(); });
   }

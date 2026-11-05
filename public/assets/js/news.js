@@ -117,6 +117,7 @@
   }
 
   async function remove(p) {
+    if (p.author_id !== s.user.id && M.state.manager) { await M.removeOrRequest({ type: 'news', id: p.id, label: p.title, owner: false }); return; }
     if (!(await confirmBox('Delete this post?', `"${p.title}" will be removed for everyone.`, 'Delete', true))) return;
     await run(async () => {
       check(await M.db.from('news_posts').delete().eq('id', p.id));
