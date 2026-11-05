@@ -729,3 +729,17 @@ h1 em, h2 em { background: linear-gradient(90deg, var(--green), #4f9a78, var(--a
 .maint-ico { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 22px; background: var(--green-soft); color: var(--green); margin-bottom: 12px; }
 .maint-ico .ico { width: 36px; height: 36px; animation: spinSlow 6s linear infinite; }
 .req-info small { display: block; margin-top: 2px; }
+
+/* staff role tags */
+.role-tag { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; padding: 2px 8px 2px 6px; border-radius: 999px; font: 800 10.5px/1.5 var(--body); letter-spacing: .06em; text-transform: uppercase; vertical-align: middle; white-space: nowrap; }
+.role-tag .ico { width: 11px; height: 11px; }
+.role-tag.admin { background: var(--green); color: #fff; }
+.role-tag.manager { background: #fbecd2; color: #8a5a12; border: 1px solid #f0d6a8; }
+.role-tag.inline { margin: 0 2px 0 6px; padding: 1px 7px 1px 5px; font-size: 9.5px; }
+h1 + .role-tag, .greeting .role-tag { display: flex; margin-top: 6px; font-size: 11.5px; padding: 3px 10px 3px 8px; }
+.name-block { display: flex; flex-direction: column; align-items: flex-start; }
+.byline { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; }
+.byline .avatar { width: 40px; height: 40px; font-size: 13px; flex-shrink: 0; }
+.byline small { display: block; }
+.avatar.staff { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--green); }
+.avatar.staff.manager { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px #e0a84a; }

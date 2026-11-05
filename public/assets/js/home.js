@@ -30,7 +30,7 @@
     const attention = h('div', {});
     const newsBox = h('div', {});
     fill(root, guestMode ? guestHero() : null, h('section', { class: 'wrap' },
-      guestMode ? null : h('div', { class: 'greeting reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: hello }), h('h1', {}, first ? `Hi, ${first} ` : 'Hello ', h('em', { text: '👋' })))),
+      guestMode ? null : h('div', { class: 'greeting reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: hello }), h('h1', {}, first ? `Hi, ${first} ` : 'Hello ', h('em', { text: '👋' })), M.roleTag(s.user.id))),
       search, guestMode ? null : attention, guestMode ? null : newsBox,
       picks.length ? h('section', { class: 'section' },
         h('div', { class: 'section-head reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: 'Clinic picks' }), h('h2', {}, "Today's ", h('em', { text: 'finds' })))),

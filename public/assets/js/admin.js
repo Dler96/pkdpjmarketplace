@@ -3,7 +3,7 @@
   'use strict';
   const M = window.M;
   const { $, h, fill, icon, money, check, run, toast, modal, confirmBox, badge, STATUS, PAY, SHOP_STATUS, market } = M;
-  const OSEL = 'id,shop_id,buyer_name,phone,delivery_location,fulfillment_method,payment_method,payment_status,status,total_rm,note,created_at,payment_receipt_path,payment_reference,order_items(product_name,quantity,unit_price_rm,shop_id)';
+  const OSEL = 'id,shop_id,buyer_id,buyer_name,phone,delivery_location,fulfillment_method,payment_method,payment_status,status,total_rm,note,created_at,payment_receipt_path,payment_reference,order_items(product_name,quantity,unit_price_rm,shop_id)';
   let s, root, shopFilter = 'pending', orderFilter = 'open';
 
   M.start(async st => {
@@ -138,7 +138,7 @@
       fill(receipt, h('img', { class: 'receipt-img', src: url, alt: 'Receipt' }), o.payment_reference ? h('p', { class: 'small muted', text: 'Ref: ' + o.payment_reference }) : null);
     }) }, icon('receipt'), 'View receipt'));
     return h('article', { class: 'order-card' },
-      h('div', { class: 'order-head' }, h('div', {}, h('strong', { text: `${o.buyer_name} → ${shop?.name || 'Several shops'}` }), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)} · ${o.phone}` })), h('span', { class: 'order-total', text: money(o.total_rm) })),
+      h('div', { class: 'order-head' }, h('div', {}, h('strong', { text: `${o.buyer_name} → ${shop?.name || 'Several shops'}` }), M.roleTag(o.buyer_id), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)} · ${o.phone}` })), h('span', { class: 'order-total', text: money(o.total_rm) })),
       h('div', { class: 'pills' }, badge(STATUS, o.status), badge(PAY, o.payment_status), h('span', { class: 'badge badge-grey', text: `${o.payment_method === 'qr' ? 'QR' : 'Cash'} · ${o.fulfillment_method === 'collection' ? 'Collect' : 'Deliver'}` })),
       h('ul', { class: 'order-lines' }, (o.order_items || []).map(i => h('li', {}, h('span', { text: `${i.product_name} × ${i.quantity}` }), h('span', { text: money(i.unit_price_rm * i.quantity) })))),
       receipt,
@@ -154,7 +154,7 @@
     const draw = () => fill(tbody, rows.filter(p => `${p.full_name} ${p.department} ${p.phone}`.toLowerCase().includes(q.toLowerCase())).slice(0, 200).map(p =>
       h('div', { class: 'list-row', style: { gridTemplateColumns: '44px 1fr auto' } },
         h('span', { class: 'avatar', style: { width: '40px', height: '40px', fontSize: '13px', background: p.is_admin ? 'var(--green)' : p.is_manager ? 'var(--amber)' : 'var(--ink)' }, text: (p.full_name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }),
-        h('div', {}, h('strong', { text: p.full_name || 'No name' }), h('small', { text: [p.account_type === 'seller' ? 'Seller' : 'Buyer', p.is_admin ? 'Admin' : p.is_manager ? 'Manager' : null, p.department, p.phone].filter(Boolean).join(' · ') })),
+        h('div', {}, M.nameBlock(p.full_name || 'No name', p.id), h('small', { text: [p.account_type === 'seller' ? 'Seller' : 'Buyer', p.department, p.phone].filter(Boolean).join(' · ') })),
         p.id === s.user.id ? h('span', { class: 'badge badge-green', text: 'You' })
           : s.superAdmin ? roleSelect(p, draw)
           : h('span', { class: 'badge', text: p.is_admin ? 'Admin' : p.is_manager ? 'Manager' : 'Member' }))));
@@ -197,7 +197,7 @@
     const row = r => h('div', { class: 'list-row', style: { gridTemplateColumns: '44px 1fr auto' } },
       h('span', { class: 'empty-ico', style: { width: '40px', height: '40px', margin: 0 } }, icon(TYPE[r.target_type][1])),
       h('div', { class: 'req-info' }, h('strong', { text: r.target_label }),
-        h('small', { text: `${TYPE[r.target_type][0]} · asked by ${r.requested_by_name} · ${M.dateOnly(r.created_at)}` }),
+        h('small', {}, `${TYPE[r.target_type][0]} · asked by ${r.requested_by_name}`, M.roleTag(r.requested_by, true), ` · ${M.dateOnly(r.created_at)}`),
         r.reason ? h('small', { style: { color: 'var(--ink)' }, text: 'Reason: ' + r.reason }) : null,
         r.status !== 'pending' ? h('small', { text: (r.status === 'approved' ? 'Deleted' : 'Declined') + (r.decision_note ? ' — ' + r.decision_note : '') }) : null),
       r.status !== 'pending' ? h('span', { class: 'badge ' + (r.status === 'approved' ? 'badge-red' : ''), text: r.status === 'approved' ? 'Deleted' : 'Declined' })

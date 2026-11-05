@@ -88,7 +88,7 @@
       const hl = h('input', { type: 'checkbox' });
       return h('article', { class: 'card review-card' },
         h('div', { class: 'review-top' }, N.art(p, 'news-thumb'),
-          h('div', {}, h('span', { class: 'news-meta' }, N.catBadge(p), h('small', { class: 'muted', text: `by ${p.author_name} · ${N.ago(p.created_at)}` })),
+          h('div', {}, h('span', { class: 'news-meta' }, N.catBadge(p), h('small', { class: 'muted' }, `by ${p.author_name}`, M.roleTag(p.author_id, true), ` · ${N.ago(p.created_at)}`)),
             h('h3', { style: { margin: '6px 0 4px' }, text: p.title }),
             p.category === 'event' ? h('p', { class: 'small', style: { margin: 0 } }, icon('clock'), ' ', N.eventWhen(p), p.event_location ? ' · ' + p.event_location : '') : null)),
         p.summary ? h('p', { class: 'muted', text: p.summary }) : null,
@@ -147,7 +147,8 @@
       h('div', { class: 'article-body reveal d1' },
         h('span', { class: 'news-meta' }, N.catBadge(p), p.highlight ? h('span', { class: 'news-hl' }, icon('star'), 'Highlight') : null),
         h('h1', { text: p.title }),
-        h('p', { class: 'muted small', text: `By ${p.author_name || 'Member'} · ${M.dateOnly(p.approved_at || p.created_at)}` }),
+        h('div', { class: 'byline' }, h('span', { class: 'avatar', text: (p.author_name || 'M').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() }),
+          h('div', {}, M.nameBlock(p.author_name || 'Member', p.author_id), h('small', { class: 'muted', text: M.dateOnly(p.approved_at || p.created_at) }))),
         p.category === 'event' && p.event_start ? h('div', { class: 'event-box' },
           h('div', {}, icon('clock'), h('span', { text: N.eventWhen(p) })),
           p.event_location ? h('div', {}, icon('pin'), h('span', { text: p.event_location })) : null,

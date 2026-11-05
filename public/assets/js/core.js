@@ -414,7 +414,7 @@
       right.append(
         h('a', { class: 'icon-btn news-btn', href: '/news', 'aria-label': 'News & events', title: 'News & events', 'aria-current': page() === 'news' ? 'page' : null }, icon('news')),
         h('a', { class: 'bag-btn', href: '/bag', 'aria-label': 'Your bag', 'aria-current': page() === 'bag' ? 'page' : null }, icon('bag'), h('span', { class: 'hide-sm', text: 'Bag' }), h('b', { class: 'bag-badge', hidden: true, text: '0' })),
-        h('a', { class: 'avatar', href: '/account', 'aria-label': 'My account', title: displayName(), text: initials() }));
+        h('a', { class: 'avatar' + (state.admin ? ' staff ' + state.role : ''), href: '/account', 'aria-label': 'My account', title: displayName() + (state.admin ? ` (${state.superAdmin ? 'Admin' : 'Manager'})` : ''), text: initials() }));
     } else {
       right.append(h('a', { class: 'btn btn-ghost btn-sm hide-sm', href: '/account' }, 'Log in'), h('a', { class: 'btn btn-primary btn-sm', href: '/account?mode=register' }, 'Join'));
     }
@@ -479,7 +479,7 @@
         renderHeader();
         if (state.user && !String(state.profile?.phone || '').trim() && !opts.noPhoneGate) { loading(false); await phoneGate(); loading(true); renderHeader(); }
         if (opts.auth && !state.user) { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
-        const site = await siteSettings();
+        const [site] = await Promise.all([siteSettings(), loadStaffRoles()]);
         if (site?.maintenance && !state.admin && page() !== 'account') { fill($('#main'), maintenancePage(site)); loading(false); return; }
         if (site?.announcement) announce(site.announcement, site.maintenance && state.admin);
         if (opts.admin && !state.admin) { fill($('#main'), h('section', { class: 'wrap page-pad' }, empty('shield', 'Admins only', 'This account does not have admin access.', h('a', { class: 'btn btn-primary', href: '/' }, 'Back to home')))); return; }
@@ -493,6 +493,26 @@
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   }
+  // ---------- staff tags: small "Admin" / "Manager" label under names ----------
+  const staffRoles = new Map();
+  async function loadStaffRoles() {
+    try {
+      const c = JSON.parse(sessionStorage.getItem('pkdpj-roles') || 'null');
+      if (c && Date.now() - c.at < 300000) { c.v.forEach(([k, v]) => staffRoles.set(k, v)); return; }
+    } catch { /* ignore */ }
+    const r = await db.rpc('marketplace_staff_roles');
+    if (r.error) return;   // 11-role-tags.sql not run yet
+    (r.data || []).forEach(x => staffRoles.set(x.id, x.role));
+    try { sessionStorage.setItem('pkdpj-roles', JSON.stringify({ at: Date.now(), v: [...staffRoles] })); } catch { /* ignore */ }
+  }
+  const roleOf = id => (id && id === state.user?.id ? (state.superAdmin ? 'admin' : state.manager ? 'manager' : null) : staffRoles.get(id)) || null;
+  // inline = sits next to text in a byline; otherwise it is a small block under the name
+  function roleTag(id, inline = false) {
+    const r = roleOf(id);
+    return r ? h('span', { class: `role-tag ${r}${inline ? ' inline' : ''}`, title: r === 'admin' ? 'Market Admin' : 'Market Manager' }, icon('shield'), r === 'admin' ? 'Admin' : 'Manager') : null;
+  }
+  const nameBlock = (name, id, tag = 'strong') => h('span', { class: 'name-block' }, h(tag, { text: name }), roleTag(id));
+
   // ---------- site settings: maintenance mode + announcement banner ----------
   async function siteSettings() {
     try {
@@ -555,7 +575,7 @@
     toast, friendly, loading, run, check, modal, confirmBox,
     signImages, imageUrl, shrinkImage, uploadShopImage, loadMarket, clearMarketCache,
     bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, shopLogo, stockNote, empty, receiptBox,
-    displayName, renderHeader, reveal, start, signOut, realName, askToJoin, removeOrRequest
+    displayName, renderHeader, reveal, start, signOut, realName, askToJoin, removeOrRequest, roleTag, roleOf, nameBlock, loadStaffRoles
   };
   window.M = api;
 })();

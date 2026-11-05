@@ -3,7 +3,7 @@
   'use strict';
   const M = window.M;
   const { $, h, fill, icon, money, check, run, toast, modal, confirmBox, badge, STATUS, PAY, SHOP_STATUS, itemArt, market } = M;
-  const OSEL = 'id,shop_id,buyer_name,phone,delivery_location,fulfillment_method,payment_method,payment_status,status,total_rm,note,cancel_reason,created_at,paid_at,payment_receipt_path,payment_reference,order_items(id,shop_id,product_name,quantity,unit_price_rm)';
+  const OSEL = 'id,shop_id,buyer_id,buyer_name,phone,delivery_location,fulfillment_method,payment_method,payment_status,status,total_rm,note,cancel_reason,created_at,paid_at,payment_receipt_path,payment_reference,order_items(id,shop_id,product_name,quantity,unit_price_rm)';
   let s, root, orders = [], orderFilter = 'open';
 
   M.start(async st => {
@@ -345,7 +345,7 @@
         h('p', { class: 'hint', text: 'Check your bank / e-wallet before confirming.' }));
     }) }, icon('receipt'), 'View receipt'));
     return h('article', { class: 'order-card' },
-      h('div', { class: 'order-head' }, h('div', {}, h('strong', { text: o.buyer_name }), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)}${s.market.myShops.length > 1 && shop ? ' · ' + shop.name : ''}` })), h('span', { class: 'order-total', text: money(subtotal(o)) })),
+      h('div', { class: 'order-head' }, h('div', {}, M.nameBlock(o.buyer_name, o.buyer_id), h('small', { text: `${M.shortId(o.id)} · ${M.when(o.created_at)}${s.market.myShops.length > 1 && shop ? ' · ' + shop.name : ''}` })), h('span', { class: 'order-total', text: money(subtotal(o)) })),
       h('div', { class: 'pills' }, badge(STATUS, o.status), badge(PAY, o.payment_status), h('span', { class: 'badge badge-grey', text: o.payment_method === 'qr' ? 'QR' : 'Cash' })),
       h('ul', { class: 'order-lines' }, o.order_items.map(i => h('li', {}, h('span', { text: `${i.product_name} × ${i.quantity}` }), h('span', { text: money(i.unit_price_rm * i.quantity) })))),
       h('div', { class: 'order-meta' },

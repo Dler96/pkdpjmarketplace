@@ -68,7 +68,7 @@
         h('strong', { class: 'news-title', text: p.title }),
         p.category === 'event' && p.event_start ? h('span', { class: 'news-when' }, icon('clock'), eventWhen(p)) : null,
         p.summary ? h('span', { class: 'news-sum', text: p.summary }) : null,
-        h('small', { class: 'news-by', text: `${p.author_name || 'Member'} · ${ago(p.approved_at || p.created_at)}` })));
+        h('small', { class: 'news-by' }, p.author_name || 'Member', M.roleTag(p.author_id, true), ` · ${ago(p.approved_at || p.created_at)}`)));
   }
 
   function slide(p) {
