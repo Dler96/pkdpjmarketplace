@@ -49,14 +49,14 @@
       shop.bio ? h('p', { class: 'sf-bio pre', text: shop.bio }) : null,
       h('div', { class: 'sf-actions' },
         shop.mine ? h('a', { class: 'btn btn-primary', href: `/sell#shop-${shop.id}` }, icon('edit'), 'Manage shop') : null,
-        wa && !shop.mine ? h('a', { class: 'btn btn-primary', href: wa, target: '_blank', rel: 'noopener' }, icon('whatsapp'), 'WhatsApp') : null,
+        !M.state.user ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => M.askToJoin('Log in to contact this shop', 'Create a free account or log in to message the seller and place orders.') }, icon('whatsapp'), 'WhatsApp') : wa && !shop.mine ? h('a', { class: 'btn btn-primary', href: wa, target: '_blank', rel: 'noopener' }, icon('whatsapp'), 'WhatsApp') : null,
         h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => shareShop(shop) }, icon('share'), 'Share shop')),
       h('div', { class: 'sf-stats' },
         stat(live.length, live.length === 1 ? 'item' : 'items'),
         stat(inStock, 'in stock'),
         stat(types.length || '—', types.length === 1 ? 'category' : 'categories'),
         stat(since, 'on the market')),
-      h('div', { class: 'sf-pay' }, icon('wallet'), shop.payment_qr_path ? 'Pay cash or DuitNow QR' : 'Pay cash on collection / delivery'));
+      h('div', { class: 'sf-pay' }, icon('wallet'), shop.payment_qr_path || !M.state.user ? 'Pay cash or QR (DuitNow / Touch \'n Go)' : 'Pay cash on collection / delivery'));
 
     // ---------- items ----------
     const search = h('input', { type: 'search', placeholder: `Search ${shop.name}`, 'aria-label': 'Search this shop', oninput: e => { q = e.target.value.trim().toLowerCase(); draw(); } });
@@ -95,7 +95,7 @@
         chips, h('div', { style: { height: '12px' } }), grid),
       h('div', { class: 'wrap' }, more));
     draw();
-  }, { auth: true, market: true });
+  }, { market: true });
 
   function stat(v, label) { return h('div', { class: 'sf-stat' }, h('b', { text: String(v) }), h('small', { text: label })); }
 
@@ -106,7 +106,7 @@
     const qrBox = h('div', { class: 'qr-poster' }, h('div', { class: 'skeleton', style: { height: '260px' } }));
     const dl = h('button', { class: 'btn btn-ghost btn-block', type: 'button', disabled: true }, icon('qr'), 'Download QR poster');
     M.modal('Share your shop', h('div', {},
-      h('p', { class: 'muted', text: 'Anyone at PKDPJ can open this link after they sign in.' }),
+      h('p', { class: 'muted', text: 'Anyone can open this link and look around. They log in when they want to order.' }),
       h('div', { class: 'copy-row' }, input,
         h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
           try { await navigator.clipboard.writeText(url); M.toast('Link copied'); } catch { input.select(); document.execCommand('copy'); M.toast('Link copied'); }

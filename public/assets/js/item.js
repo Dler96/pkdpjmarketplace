@@ -46,9 +46,9 @@
           h('a', { class: 'seller-box', href: M.shopUrl(shop), style: { '--banner': shop.theme || '#e5dfd1' } },
             M.shopLogo(shop, 'symbol'),
             h('div', {}, h('strong', { text: shop.name }), h('small', { text: `${shop.unit_department} · ${shop.location}` })), icon('arrow')),
-          wa && !shop.mine ? h('a', { class: 'btn btn-soft btn-block', style: { marginTop: '10px' }, href: wa, target: '_blank', rel: 'noopener' }, icon('whatsapp'), 'Ask the seller') : null,
-          h('p', { class: 'hint', style: { marginTop: '14px' } }, icon('wallet'), ` Pay ${shop.name} directly — cash${shop.payment_qr_path ? ' or QR' : ''}. ${i.category === 'Services' ? 'The seller will contact you to arrange a time.' : ''}`))),
+          !M.state.user ? h('button', { class: 'btn btn-soft btn-block', type: 'button', style: { marginTop: '10px' }, onclick: () => M.askToJoin('Log in to contact the seller', 'Seller phone numbers are only shown to members. Create a free account or log in to message them.') }, icon('whatsapp'), 'Ask the seller') : wa && !shop.mine ? h('a', { class: 'btn btn-soft btn-block', style: { marginTop: '10px' }, href: wa, target: '_blank', rel: 'noopener' }, icon('whatsapp'), 'Ask the seller') : null,
+          h('p', { class: 'hint', style: { marginTop: '14px' } }, icon('wallet'), ` Pay ${shop.name} directly — cash${shop.payment_qr_path || !M.state.user ? ' or QR' : ''}. ${i.category === 'Services' ? 'The seller will contact you to arrange a time.' : ''}`))),
       more.length ? h('section', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', {}, 'More from ', h('em', { text: shop.name }))), h('div', { class: 'item-grid' }, more.map(p => itemCard(p, { showShop: false })))) : null));
     if (available) setQty(1);
-  }, { auth: true, market: true });
+  }, { market: true });
 })();

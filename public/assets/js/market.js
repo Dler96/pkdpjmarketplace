@@ -74,5 +74,5 @@
     searchInput.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { st.q = searchInput.value; draw(); }, 160); });
     sortSel.addEventListener('change', () => { st.sort = sortSel.value; draw(); });
     draw();
-  }, { auth: true, market: true });
+  }, { market: true });
 })();

@@ -193,6 +193,17 @@
       }, form); });
     });
   }
+  // Shown when a guest tries something that needs an account
+  function askToJoin(title = 'Join PKDPJ Market', text = 'Log in or create a free account to continue.') {
+    const next = encodeURIComponent(location.pathname + location.search);
+    const m = modal(title, h('div', {},
+      h('p', { class: 'muted', text }),
+      h('div', { style: { display: 'grid', gap: '10px', marginTop: '6px' } },
+        h('a', { class: 'btn btn-primary btn-lg btn-block', href: `/account?mode=register&next=${next}` }, 'Create a free account', icon('arrow')),
+        h('a', { class: 'btn btn-ghost btn-block', href: `/account?next=${next}` }, 'I already have an account — log in')),
+      h('p', { class: 'small muted', style: { textAlign: 'center', marginTop: '12px' }, text: 'For PKD Putrajaya and KK Presint 9, 11, 14 & 18 staff.' })), { eyebrow: 'Members only' });
+    return m;
+  }
   const displayName = () => state.profile?.full_name || state.user?.user_metadata?.full_name || state.user?.email || 'Account';
   const initials = () => displayName().trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'U';
 
@@ -242,10 +253,11 @@
     if (!fresh) {
       try {
         const c = JSON.parse(sessionStorage.getItem(CACHE) || 'null');
-        if (c && c.user === state.user.id && Date.now() - c.at < 30000) { c.urls.forEach(([k, v]) => urlCache.set(k, v)); return hydrate(c.data); }
+        if (c && c.user === (state.user?.id || 'guest') && Date.now() - c.at < 30000) { c.urls.forEach(([k, v]) => urlCache.set(k, v)); return hydrate(c.data); }
       } catch { /* ignore */ }
     }
-    const SHOP_COLS = 'id,owner_id,name,unit_department,location,market_id,category,bio,theme,symbol,word,cover_image_path,payment_qr_path,whatsapp,status,created_at,products(id,shop_id,name,description,category,unit_price_rm,stock_qty,emoji,condition,image_path,active,sort_order,created_at)';
+    // Guests never receive the seller's WhatsApp number or payment QR (the database hides them too).
+    const SHOP_COLS = 'id,owner_id,name,unit_department,location,market_id,category,bio,theme,symbol,word,cover_image_path,' + (state.user ? 'payment_qr_path,whatsapp,' : '') + 'status,created_at,products(id,shop_id,name,description,category,unit_price_rm,stock_qty,emoji,condition,image_path,active,sort_order,created_at)';
     const shopsQuery = async () => {
       // Works before and after 06-shop-pages.sql (the slug column) has been run.
       const r = await db.from('shops').select('slug,logo_image_path,' + SHOP_COLS).order('created_at', { ascending: false });
@@ -255,9 +267,10 @@
       shopsQuery(),
       db.from('daily_highlights').select('product_id,rank,sponsored').eq('feature_date', todayKL()).order('rank')
     ]);
+    if (shopsRes.error && !state.user) { console.warn('Guest browsing is not switched on yet (run 09-guest-browsing.sql).', shopsRes.error); state.guestLocked = true; return hydrate({ shops: [], picks: [] }); }
     const data = { shops: check(shopsRes) || [], picks: picksRes.error ? [] : picksRes.data || [] };
     await signImages(data.shops.flatMap(s => [s.cover_image_path, s.logo_image_path, s.payment_qr_path, ...(s.products || []).map(p => p.image_path)]));
-    try { sessionStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), user: state.user.id, data, urls: [...urlCache] })); } catch { /* full */ }
+    try { sessionStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), user: state.user?.id || 'guest', data, urls: [...urlCache] })); } catch { /* full */ }
     return hydrate(data);
   }
   const clearMarketCache = () => { try { sessionStorage.removeItem(CACHE); } catch { /* ignore */ } };
@@ -292,6 +305,7 @@
     set(id, qty) { const list = bag.read().filter(x => x.id !== id); if (qty > 0) list.push({ id, qty: Math.min(99, qty) }); bag.write(list); },
     add(item, qty = 1) {
       if (!item) return false;
+      if (!state.user) { askToJoin('Log in to order', `Create a free account or log in to add ${item.name} to your bag. It only takes a minute.`); return false; }
       if (item.shop?.mine) { toast('This is your own shop — manage it in Sell.', 'error'); return false; }
       if (!item.shop?.open || !item.active) { toast('This item is not available right now.', 'error'); return false; }
       const next = bag.qty(item.id) + qty;
@@ -461,7 +475,8 @@
         if (state.user && !String(state.profile?.phone || '').trim() && !opts.noPhoneGate) { loading(false); await phoneGate(); loading(true); renderHeader(); }
         if (opts.auth && !state.user) { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
         if (opts.admin && !state.admin) { fill($('#main'), h('section', { class: 'wrap page-pad' }, empty('shield', 'Admins only', 'This account does not have admin access.', h('a', { class: 'btn btn-primary', href: '/' }, 'Back to home')))); return; }
-        if (opts.market && state.user) await loadMarket(opts.fresh);
+        if (opts.market) await loadMarket(opts.fresh);
+        if (!state.user && state.guestLocked && opts.market && page() !== 'home') { location.replace('/account?next=' + encodeURIComponent(location.pathname + location.search)); return; }
         await pageFn(state);
         reveal();
       } catch (e) { console.error(e); toast(friendly(e), 'error', 8000); }
@@ -481,7 +496,7 @@
     toast, friendly, loading, run, check, modal, confirmBox,
     signImages, imageUrl, shrinkImage, uploadShopImage, loadMarket, clearMarketCache,
     bag, updateBagBadges, itemArt, itemCard, shopCard, shopUrl, shopLink, shopLogo, stockNote, empty, receiptBox,
-    displayName, renderHeader, reveal, start, signOut, realName
+    displayName, renderHeader, reveal, start, signOut, realName, askToJoin
   };
   window.M = api;
 })();

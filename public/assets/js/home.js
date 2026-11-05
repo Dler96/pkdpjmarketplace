@@ -5,7 +5,7 @@
 
   M.start(async s => {
     const root = $('#home-root');
-    if (!s.user) return guest(root);
+    const guestMode = !s.user;   // guests can look around; buying needs an account
     const m = s.market;
     const first = (s.profile?.full_name || '').split(' ')[0];
     const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: M.TZ, hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
@@ -29,9 +29,9 @@
 
     const attention = h('div', {});
     const newsBox = h('div', {});
-    fill(root, h('section', { class: 'wrap' },
-      h('div', { class: 'greeting reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: hello }), h('h1', {}, first ? `Hi, ${first} ` : 'Hello ', h('em', { text: '👋' })))),
-      search, attention, newsBox,
+    fill(root, guestMode ? guestHero() : null, h('section', { class: 'wrap' },
+      guestMode ? null : h('div', { class: 'greeting reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: hello }), h('h1', {}, first ? `Hi, ${first} ` : 'Hello ', h('em', { text: '👋' })))),
+      search, guestMode ? null : attention, guestMode ? null : newsBox,
       picks.length ? h('section', { class: 'section' },
         h('div', { class: 'section-head reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: 'Clinic picks' }), h('h2', {}, "Today's ", h('em', { text: 'finds' })))),
         h('div', { class: 'picks reveal d1' }, picks.slice(0, 3).map(p => h('a', { class: 'pick', href: `/item?id=${p.item.id}` },
@@ -51,10 +51,11 @@
         h('div', { class: 'section-head reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: 'Unit shops' }), h('h2', {}, 'Take a ', h('em', { text: 'look around' }))), h('a', { href: '/market', text: 'Browse →' })),
         shops.length ? h('div', { class: 'shop-grid' }, shops.map(x => { const c = shopCard(x); c.classList.add('reveal'); return c; }))
           : M.empty('store', 'No shops are open yet', 'Units are setting up. Why not be the first?', h('a', { class: 'btn btn-primary', href: '/sell' }, 'Open a unit shop'))),
-      !s.seller ? h('section', { class: 'section reveal' }, h('div', { class: 'card', style: { background: 'var(--green-soft)', borderColor: '#cfe2d5' } },
+      guestMode ? guestJoin() : !s.seller ? h('section', { class: 'section reveal' }, h('div', { class: 'card', style: { background: 'var(--green-soft)', borderColor: '#cfe2d5' } },
         h('h2', {}, 'Got something to ', h('em', { text: 'sell?' })), h('p', { class: 'muted', text: 'Open a shop for your unit — food, crafts, printables or services. It takes about a minute.' }),
         h('a', { class: 'btn btn-primary', href: '/sell' }, 'Start selling', icon('arrow')))) : null));
 
+    if (guestMode) return;
     // News highlights + upcoming events (best effort, after first paint)
     loadNews(newsBox);
 
@@ -90,6 +91,24 @@
     } catch { /* news not set up yet — skip quietly */ }
   }
 
+  function guestHero() {
+    return h('section', { class: 'wrap hero' }, h('div', { class: 'hero-card reveal' },
+      h('img', { src: '/assets/img/clinic-facade.webp', alt: 'Klinik Kesihatan Putrajaya Presint 18', fetchpriority: 'high' }),
+      h('div', { class: 'hero-copy' },
+        h('span', { class: 'eyebrow', text: M.cfg.tagline || 'PKD Putrajaya' }),
+        h('h1', {}, 'Good things start ', h('em', { text: 'right here.' })),
+        h('p', { text: 'Food, crafts, printables and services — made and offered by the units and departments you work alongside. Have a look around; log in when you are ready to order.' }),
+        h('div', { class: 'hero-actions' }, h('a', { class: 'btn btn-primary btn-lg', href: '/account?mode=register' }, 'Join the market', icon('arrow')), h('a', { class: 'btn btn-ghost btn-lg', href: '/account' }, 'Log in')))));
+  }
+  function guestJoin() {
+    const steps = [['store', 'Browse', 'Look around freely — no account needed.'], ['bag', 'Join to order', 'Create a free account with your real name and phone.'], ['wallet', 'Pay your way', 'Cash on collection or scan the shop\'s QR (DuitNow / Touch \'n Go).']];
+    return h('section', { class: 'section' },
+      h('div', { class: 'section-head reveal' }, h('div', {}, h('span', { class: 'eyebrow', text: 'How it works' }), h('h2', {}, 'Three easy ', h('em', { text: 'steps' })))),
+      h('div', { class: 'shop-grid' }, steps.map(([ic, t, d], n) => h('div', { class: `card reveal d${n}` }, h('span', { class: 'empty-ico', style: { width: '48px', height: '48px', marginBottom: '8px' } }, icon(ic)), h('h3', { text: `${n + 1}. ${t}` }), h('p', { class: 'muted', style: { margin: 0 }, text: d })))),
+      h('div', { class: 'card reveal', style: { background: 'var(--green-soft)', borderColor: '#cfe2d5', marginTop: '16px' } },
+        h('h2', {}, 'Ready to ', h('em', { text: 'order or sell?' })), h('p', { class: 'muted', text: 'Join free to buy from any shop, open your own unit shop, and read PKD news and events.' }),
+        h('div', { class: 'action-row', style: { justifyContent: 'flex-start' } }, h('a', { class: 'btn btn-primary', href: '/account?mode=register' }, 'Create an account', icon('arrow')), h('a', { class: 'btn btn-ghost', href: '/account' }, 'Log in'))));
+  }
   function guest(root) {
     const steps = [['store', 'Browse', 'Shops from PKD Putrajaya and KK Presint 9, 11, 14 & 18.'], ['bag', 'Add to bag', 'Order from several shops in one go.'], ['wallet', 'Pay your way', 'Cash on collection or scan the shop\'s QR.']];
     fill(root,
